@@ -1,3 +1,4 @@
+require "#{File.dirname(__FILE__)}/rubycom.rb"
 ##
 # A Test command Line tool
 ##
@@ -8,7 +9,7 @@ module Test
   # @param [String] say what kitties should say
   # @param [Integer] count how many times kitties say it
   def self.kitties(say='MAOW!',count)
-    puts "Kitties: #{say.count.times}"
+    puts "Kitties say #{say} like #{count} times"
   end
 
   # A method that tests a code value
