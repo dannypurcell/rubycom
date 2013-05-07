@@ -31,5 +31,8 @@ module Test
   def test_count(count)
     count += 1
   end
-  include Rubycom
+
+  if File.expand_path(__FILE__) == File.expand_path($0)
+    include Rubycom
+  end
 end
