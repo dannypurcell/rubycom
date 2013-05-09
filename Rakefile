@@ -10,7 +10,7 @@ task :test do
   }
 end
 
-task :build do
+task :doc do
   system("yard")
   raise "Error during doc phase" if $?.exitstatus != 0
 end
