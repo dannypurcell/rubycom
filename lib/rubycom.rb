@@ -1,4 +1,4 @@
-require "#{File.expand_path(File.dirname(__FILE__))}/lib/version.rb"
+require "#{File.expand_path(File.dirname(__FILE__))}/rubycom/version.rb"
 require 'yard'
 require 'yaml'
 
