@@ -1,4 +1,4 @@
-require "#{File.expand_path(File.dirname(__FILE__))}/../../../src/main/scripts/rubycom"
+require "#{File.expand_path(File.dirname(__FILE__))}/../../lib/rubycom.rb"
 
 class TestClass
 
@@ -83,14 +83,6 @@ end
 require 'test/unit'
 #noinspection RubyInstanceMethodNamingConvention
 class TestSimpleNumber < Test::Unit::TestCase
-
-  def setup
-
-  end
-
-  def teardown
-
-  end
 
   def test_retrieve_method_hash
     method = TestClass.public_method(:test_command)
