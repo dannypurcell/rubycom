@@ -1,4 +1,4 @@
-require "rubycom/version"
+require "#{File.expand_path(File.dirname(__FILE__))}/lib/version.rb"
 require 'yard'
 require 'yaml'
 
