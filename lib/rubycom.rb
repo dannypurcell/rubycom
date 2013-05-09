@@ -2,6 +2,11 @@ require "rubycom/version"
 require 'yard'
 require 'yaml'
 
+# Upon inclusion in another Module, Rubycom will attempt to call a method in the including module by parsing
+# ARGV and passing for a Method.name and a list of arguments.
+# If found Rubycom will call the Method specified by ARGV[0] with the parameters parsed from ARGV[1..-1]
+# If a Method match can not be made, Rubycom will print help instead by parsing source documentation from the including
+# module.
 module Rubycom
 
   # Detects that Rubycom was included in another module and calls Rubycom#run
@@ -272,13 +277,15 @@ module Rubycom
     doc_hash
   end
 
+  # Used in retrieve_method_hash to determine whether to trace activity on STDOUT or not.
   @parser_dump = false
+
   # Searches the given s-expression for a YARD::Parser::Ruby::AstNode which has
   # YARD::Parser::Ruby::AstNode#type == :defs and which has a child node who's YARD::Parser::Ruby::AstNode#source matches
   # the given Method#name
   # If @parser_dump == true (default=false) this method will trace it's activity on STDOUT
   #
-  # @param [Module] base the module which invoked 'include Rubycom'
+  # @param [YARD::Parser::Ruby::AstNode] sexp_arr the S-expression to search
   # @param [Method] method the method to search for
   # @param [Integer] level this variable tracks the depth of the node currently being inspected, new searches should start
   #                        with this at 0
