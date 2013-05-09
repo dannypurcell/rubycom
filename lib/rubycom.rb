@@ -11,6 +11,10 @@ module Rubycom
     base.module_eval { Rubycom.run(self, ARGV) }
   end
 
+  # Looks up the command specified in the first arg and executes with the rest of the args
+  #
+  # @param [Module] base the module which invoked 'include Rubycom'
+  # @param [Array] args a String Array representing the command to run followed by arguments to be passed
   def self.run(base, args=[])
     begin
       raise "Invalid base class invocation: #{base}" if base.nil?
@@ -35,6 +39,11 @@ module Rubycom
     end
   end
 
+  # Calls the given Method#name on the given Module after parsing the given Array of arguments
+  #
+  # @param [Module] base the module which invoked 'include Rubycom'
+  # @param [String] command the name of the Method to call
+  # @param [Array] arguments a String Array representing the arguments for the given command
   def self.run_command(base, command, arguments=[])
     raise 'No command specified.' if command.nil? || command.length == 0
     begin
@@ -51,6 +60,12 @@ module Rubycom
     end
   end
 
+  # Parses the given arguments and matches them to the given parameters
+  #
+  # @param [Array] parameters an Array of Arrays representing the parameters to match.
+  #                Entries should match :req or :opt followed by the Symbol
+  # @param [Array] arguments an Array of Strings representing the arguments to be parsed
+  # @return [Array] an Array representing the parsed arguments in the order they should be passed to a method
   def self.parse_arguments(parameters=[], arguments=[])
     parsed_params = {}
     args_l = arguments.length
@@ -91,16 +106,28 @@ module Rubycom
     ret_params
   end
 
+  # Uses YAML.load to parse the given String
+  #
+  # @param [String] arg a String representing the argument to be parsed
+  # @return [Object] the result of parsing the given arg with YAML.load
   def self.parse_arg(arg)
     return nil if arg.nil? || arg.length == 0
     val = YAML.load(arg) rescue nil
     val || "#{arg}"
   end
 
+  # Retrieves the singleton methods in the given base
+  #
+  # @param [Module] base the module which invoked 'include Rubycom'
+  # @return [Array] an Array of Symbols representing the singleton methods in the given base
   def self.get_commands(base)
     base.singleton_methods(false)
   end
 
+  # Retrieves the summary for each singleton method in the given Module
+  #
+  # @param [Module] base the module which invoked 'include Rubycom'
+  # @return [String] the summary for each singleton method in the given Module
   def self.get_summary(base)
     return_str = ""
     base_singleton_methods = base.singleton_methods(false)
@@ -111,6 +138,10 @@ module Rubycom
     return_str
   end
 
+  # Retrieves the detailed usage description for each singleton method in the given Module
+  #
+  # @param [Module] base the module which invoked 'include Rubycom'
+  # @return [String] the detailed usage description for each singleton method in the given Module
   def self.get_usage(base)
     return_str = ""
     base_singleton_methods = base.singleton_methods(false)
@@ -122,6 +153,11 @@ module Rubycom
     return_str
   end
 
+  # Retrieves the summary for the given command_name
+  #
+  # @param [Module] base the module which invoked 'include Rubycom'
+  # @param [String] command_name the command to retrieve usage for
+  # @return [String] a summary of the given command_name
   def self.get_command_summary(base, command_name)
     return 'No command specified.' if command_name.nil? || command_name.length == 0
     m = base.public_method(command_name.to_sym)
@@ -130,6 +166,11 @@ module Rubycom
     (desc.nil?||desc=='nil') ? "#{m.name}\n" : "#{m.name} - #{desc}\n"
   end
 
+  # Retrieves the detailed usage description for the given command_name
+  #
+  # @param [Module] base the module which invoked 'include Rubycom'
+  # @param [String] command_name the command to retrieve usage for
+  # @return [String] the detailed usage description for the given command_name
   def self.get_command_usage(base, command_name)
     return 'No command specified.' if command_name.nil? || command_name.length == 0
     m = base.public_method(command_name.to_sym)
@@ -178,7 +219,12 @@ module Rubycom
     msg
   end
 
-
+  # Retrieves the given method's documentation from it's source code.
+  #
+  # @param [Method] method the Method who's documentation should be retrieved
+  # @return [Hash] a Hash representing the given Method's documentation, documentation parsed as follows:
+  #                :desc = the first general method comment, :params = each @param comment, :return  = each @return comment,
+  #                :extended = all other general method comments and unrecognized annotations
   def self.get_doc(method)
     source_file = method.source_location.first
     doc_str = ''
@@ -227,7 +273,15 @@ module Rubycom
   end
 
   @parser_dump = false
-
+  # Searches the given s-expression for a YARD::Parser::Ruby::AstNode which has
+  # YARD::Parser::Ruby::AstNode#type == :defs and which has a child node who's YARD::Parser::Ruby::AstNode#source matches
+  # the given Method#name
+  # If @parser_dump == true (default=false) this method will trace it's activity on STDOUT
+  #
+  # @param [Module] base the module which invoked 'include Rubycom'
+  # @param [Method] method the method to search for
+  # @param [Integer] level this variable tracks the depth of the node currently being inspected, new searches should start
+  #                        with this at 0
   def self.retrieve_method_hash(sexp_arr, method, level=0)
     tabs = ''
     level.times { tabs<<' ' } if @parser_dump
