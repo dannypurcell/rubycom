@@ -3,8 +3,10 @@ require 'yard'
 require 'yaml'
 
 module Rubycom
-  @filter_methods = []
 
+  # Detects that Rubycom was included in another module and calls Rubycom#run
+  #
+  # @param [Module] base the module which invoked 'include Rubycom'
   def self.included(base)
     base.module_eval { Rubycom.run(self, ARGV) }
   end
@@ -96,12 +98,12 @@ module Rubycom
   end
 
   def self.get_commands(base)
-    base.singleton_methods(false).select { |sym| !@filter_methods.include? sym }
+    base.singleton_methods(false)
   end
 
   def self.get_summary(base)
     return_str = ""
-    base_singleton_methods = base.singleton_methods(false).select { |sym| !@filter_methods.include? sym }
+    base_singleton_methods = base.singleton_methods(false)
     return_str << "Commands:\n"unless base_singleton_methods.length == 0
     base_singleton_methods.each { |sym|
       return_str << "  " << self.get_command_summary(base, sym)
@@ -111,7 +113,7 @@ module Rubycom
 
   def self.get_usage(base)
     return_str = ""
-    base_singleton_methods = base.singleton_methods(false).select { |sym| !@filter_methods.include? sym }
+    base_singleton_methods = base.singleton_methods(false)
     return_str << "Commands:\n" unless base_singleton_methods.length == 0
     base_singleton_methods.each { |sym|
       cmd_usage = self.get_command_usage(base, sym)
