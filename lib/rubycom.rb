@@ -37,7 +37,7 @@ module Rubycom
       else
         output = self.run_command(base, command, arguments)
         std_output = nil
-        std_output = output.to_yaml unless [String,NilClass,TrueClass,FalseClass,Fixnum,Float,Symbol].include?(output.class)
+        std_output = output.to_yaml unless [String, NilClass, TrueClass, FalseClass, Fixnum, Float, Symbol].include?(output.class)
         puts std_output || output
         return output
       end
@@ -62,7 +62,18 @@ module Rubycom
       method = base.public_method(command_sym)
       raise "No public singleton method found for symbol: #{command_sym}" if method.nil?
       params = self.parse_arguments(method.parameters, arguments)
-      method.call(*params)
+      #puts "Param: #{params}"
+      params = params.select{|param| !param.nil?}
+      #nil_params = params.select{|param| !param.nil?}
+      #params = (nil_params.length == params.length) ? nil : params
+
+      output = nil
+      if arguments.nil? || arguments.empty? #params.nil? || params.empty?
+        output = method.call
+      else
+        output = method.call(*params)
+      end
+      output
     rescue Exception => e
       puts e
       puts self.get_command_usage(base, command)
@@ -77,6 +88,7 @@ module Rubycom
   # @return [Array] an Array representing the parsed arguments in the order they should be passed to a method
   def self.parse_arguments(parameters=[], arguments=[])
     parsed_params = {}
+    arguments = (!arguments.nil? && arguments.respond_to?(:each)) ? arguments : []
     args_l = arguments.length
     min_args_l = 0
     max_args_l = 0
@@ -85,7 +97,7 @@ module Rubycom
       min_args_l += 1 if type == :req
       max_args_l += 1
     }
-    raise "Wrong number of args expected #{min_args_l} to #{max_args_l}. Received: #{args_l}" unless (min_args_l<=args_l)&&(args_l<=max_args_l)
+    raise "Wrong number of args expected #{(min_args_l==max_args_l) ? "#{min_args_l}" : "#{min_args_l} to #{max_args_l}"}. Received: #{args_l}" unless (min_args_l<=args_l)&&(args_l<=max_args_l)
     parsed_req = []
     parsed_options = {}
     arguments.each { |arg|
@@ -140,7 +152,7 @@ module Rubycom
   def self.get_summary(base)
     return_str = ""
     base_singleton_methods = base.singleton_methods(false)
-    return_str << "Commands:\n"unless base_singleton_methods.length == 0
+    return_str << "Commands:\n" unless base_singleton_methods.length == 0
     base_singleton_methods.each { |sym|
       return_str << "  " << self.get_command_summary(base, sym)
     }
@@ -219,7 +231,7 @@ module Rubycom
     end
     msg << "    Returns:\n"
     if method_doc[:return].respond_to?(:each)
-      method_doc[:return].each{|return_doc|
+      method_doc[:return].each { |return_doc|
         msg << "        #{return_doc}\n"
       }
     else

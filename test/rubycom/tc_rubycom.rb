@@ -34,6 +34,13 @@ class TestClass
     puts "test_arg=#{test_arg},test_option=#{test_option}"
   end
 
+  # A test_command with all optional arguments
+  # @param [String] test_arg an optional test argument
+  # @param [String] test_option another optional test argument
+  def self.test_command_all_options(test_arg='test_arg_default', test_option='test_option_default')
+    puts "Output is test_arg=#{test_arg},test_option=#{test_option}"
+  end
+
   # A test_command with a return argument
   #
   # @param [String] test_arg a test argument
@@ -226,6 +233,14 @@ class TestSimpleNumber < Test::Unit::TestCase
         Returns:
             void
 
+    Command: test_command_all_options
+        Usage: test_command_all_options [-test_arg=val|-test_option=val]
+        Parameters:
+            String - test_arg an optional test argument
+            String - test_option another optional test argument
+        Returns:
+            void
+
     Command: test_command_with_return
         Usage: test_command_with_return test_arg [-test_option_int=val]
         Parameters:
@@ -288,6 +303,7 @@ class TestSimpleNumber < Test::Unit::TestCase
       test_command_with_arg - A test_command with one arg
       test_command_with_args - A test_command with two args
       test_command_with_options - A test_command with an optional argument
+      test_command_all_options - A test_command with all optional arguments
       test_command_with_return - A test_command with a return argument
       test_command_arg_timestamp - A test_command with a Timestamp argument
       test_command_arg_false - A test_command with a Boolean argument
@@ -375,7 +391,7 @@ class TestSimpleNumber < Test::Unit::TestCase
   end
 
   def test_parse_arg_array
-    test_arg = ["1",2,"a",'b']
+    test_arg = ["1", 2, "a", 'b']
     result = Rubycom.parse_arg(test_arg.to_s)
     expected = test_arg
     assert_equal(expected, result)
@@ -392,12 +408,12 @@ class TestSimpleNumber < Test::Unit::TestCase
   def test_parse_arg_hash_group
     test_arg = ":a: [1,2]\n:b: 1\n:c: test\n:d: 1.0\n:e: \"2013-05-08 23:21:52 -0500\"\n"
     result = Rubycom.parse_arg(test_arg.to_s)
-    expected = {:a=>[1, 2], :b=>1, :c=>"test", :d=>1.0, :e=>"2013-05-08 23:21:52 -0500"}
+    expected = {:a => [1, 2], :b => 1, :c => "test", :d => 1.0, :e => "2013-05-08 23:21:52 -0500"}
     assert_equal(expected, result)
   end
 
   def test_parse_arg_yaml
-    test_arg = { :a=>["1",2,"a",'b'], :b=>1, :c=>"test", :d=>"#{Time.now.to_s}" }
+    test_arg = {:a => ["1", 2, "a", 'b'], :b => 1, :c => "test", :d => "#{Time.now.to_s}"}
     result = Rubycom.parse_arg(test_arg.to_yaml)
     expected = test_arg
     assert_equal(expected, result)
@@ -412,13 +428,15 @@ class TestSimpleNumber < Test::Unit::TestCase
 
   def test_run
     tst_out = ''
-    def tst_out.write(data); self << data; end
+    def tst_out.write(data)
+      self << data
+    end
     o_stdout, $stdout = $stdout, tst_out
     o_stderr, $stdout = $stderr, tst_out
 
     base = TestClass
-    args = ["test_command_with_arg","HelloWorld"]
-    result = Rubycom.run(base,args)
+    args = ["test_command_with_arg", "HelloWorld"]
+    result = Rubycom.run(base, args)
 
     expected = "test_arg=HelloWorld"
     expected_out = expected
@@ -431,13 +449,15 @@ class TestSimpleNumber < Test::Unit::TestCase
 
   def test_run_nil_return
     tst_out = ''
-    def tst_out.write(data); self << data; end
+    def tst_out.write(data)
+      self << data
+    end
     o_stdout, $stdout = $stdout, tst_out
     o_stderr, $stdout = $stderr, tst_out
 
     base = TestClass
     args = ["test_command"]
-    result = Rubycom.run(base,args)
+    result = Rubycom.run(base, args)
 
     expected = nil
     expected_out = "command test\n"
@@ -450,19 +470,159 @@ class TestSimpleNumber < Test::Unit::TestCase
 
   def test_run_hash_return
     tst_out = ''
-    def tst_out.write(data); self << data; end
+    def tst_out.write(data)
+      self << data
+    end
     o_stdout, $stdout = $stdout, tst_out
     o_stderr, $stdout = $stderr, tst_out
 
     base = TestClass
     time = Time.now.to_s
     args = ["test_command_arg_timestamp", time]
-    result = Rubycom.run(base,args)
+    result = Rubycom.run(base, args)
 
-    expected = {:test_time=>Time.parse(time)}
-    expected_out = {test_time: Time.parse(time) }.to_yaml
+    expected = {:test_time => Time.parse(time)}
+    expected_out = {test_time: Time.parse(time)}.to_yaml
     assert_equal(expected, result)
     assert_equal(expected_out, tst_out)
+  ensure
+    $stdout = o_stdout
+    $stderr = o_stderr
+  end
+
+  def test_run_all_optional
+    tst_out = ''
+    def tst_out.write(data)
+      self << data
+    end
+    o_stdout, $stdout = $stdout, tst_out
+    o_stderr, $stdout = $stderr, tst_out
+
+    base = TestClass
+    args = ["test_command_all_options"]
+    result = Rubycom.run(base, args)
+
+    e_test_arg = 'test_arg_default'
+    e_test_option = 'test_option_default'
+    expected = nil
+    expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n"
+    assert_equal(expected, result)
+    assert_equal(expected_out, tst_out.chomp)
+  ensure
+    $stdout = o_stdout
+    $stderr = o_stderr
+  end
+
+  def test_run_all_opt_override_first
+    tst_out = ''
+    def tst_out.write(data)
+      self << data
+    end
+    o_stdout, $stdout = $stdout, tst_out
+    o_stderr, $stdout = $stderr, tst_out
+
+    base = TestClass
+    args = ["test_command_all_options", "test_arg_modified"]
+    result = Rubycom.run(base, args)
+
+    e_test_arg = 'test_arg_modified'
+    e_test_option = 'test_option_default'
+    expected = nil
+    expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n"
+    assert_equal(expected, result)
+    assert_equal(expected_out, tst_out.chomp)
+  ensure
+    $stdout = o_stdout
+    $stderr = o_stderr
+  end
+
+  def test_run_all_opt_override_first_alt
+    tst_out = ''
+    def tst_out.write(data)
+      self << data
+    end
+    o_stdout, $stdout = $stdout, tst_out
+    o_stderr, $stdout = $stderr, tst_out
+
+    base = TestClass
+    args = ["test_command_all_options", "-test_arg=test_arg_modified"]
+    result = Rubycom.run(base, args)
+
+    e_test_arg = 'test_arg_modified'
+    e_test_option = 'test_option_default'
+    expected = nil
+    expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n"
+    assert_equal(expected, result)
+    assert_equal(expected_out, tst_out.chomp)
+  ensure
+    $stdout = o_stdout
+    $stderr = o_stderr
+  end
+
+  #def test_run_all_opt_override_second
+  #  tst_out = ''
+  #  def tst_out.write(data)
+  #    self << data
+  #  end
+  #  o_stdout, $stdout = $stdout, tst_out
+  #  o_stderr, $stdout = $stderr, tst_out
+  #
+  #  base = TestClass
+  #  args = ["test_command_all_options", "-test_option=test_option_modified"]
+  #  result = Rubycom.run(base, args)
+  #
+  #  e_test_arg = 'test_arg_default'
+  #  e_test_option = 'test_option_modified'
+  #  expected = nil
+  #  expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n"
+  #  assert_equal(expected, result)
+  #  assert_equal(expected_out, tst_out.chomp)
+  #ensure
+  #  $stdout = o_stdout
+  #  $stderr = o_stderr
+  #end
+
+  def test_run_all_opt_use_all_opt
+    tst_out = ''
+    def tst_out.write(data)
+      self << data
+    end
+    o_stdout, $stdout = $stdout, tst_out
+    o_stderr, $stdout = $stderr, tst_out
+
+    base = TestClass
+    args = ["test_command_all_options", "-test_arg=test_arg_modified", "-test_option=test_option_modified"]
+    result = Rubycom.run(base, args)
+
+    e_test_arg = 'test_arg_modified'
+    e_test_option = 'test_option_modified'
+    expected = nil
+    expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n"
+    assert_equal(expected, result)
+    assert_equal(expected_out, tst_out.chomp)
+  ensure
+    $stdout = o_stdout
+    $stderr = o_stderr
+  end
+
+  def test_run_all_opt_reverse
+    tst_out = ''
+    def tst_out.write(data)
+      self << data
+    end
+    o_stdout, $stdout = $stdout, tst_out
+    o_stderr, $stdout = $stderr, tst_out
+
+    base = TestClass
+    args = ["test_command_all_options", "-test_option=test_option_modified", "-test_arg=test_arg_modified"]
+    result = Rubycom.run(base, args)
+
+    e_test_arg = 'test_arg_modified'
+    e_test_option = 'test_option_modified'
+    expected = nil
+    expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n"
+    assert_equal(expected, result)
+    assert_equal(expected_out, tst_out.chomp)
   ensure
     $stdout = o_stdout
     $stderr = o_stderr
