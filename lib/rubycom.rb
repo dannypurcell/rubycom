@@ -35,7 +35,11 @@ module Rubycom
           puts self.get_command_usage(base, help_topic)
         end
       else
-        self.run_command(base, command, arguments)
+        output = self.run_command(base, command, arguments)
+        std_output = nil
+        std_output = output.to_yaml unless [String,NilClass,TrueClass,FalseClass,Fixnum,Float,Symbol].include?(output.class)
+        puts std_output || output
+        return output
       end
 
     rescue Exception => e

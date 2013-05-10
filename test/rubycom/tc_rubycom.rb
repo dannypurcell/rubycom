@@ -1,4 +1,5 @@
 require "#{File.expand_path(File.dirname(__FILE__))}/../../lib/rubycom.rb"
+require 'time'
 
 class TestClass
 
@@ -16,7 +17,7 @@ class TestClass
   #
   # @param [String] test_arg a test argument
   def self.test_command_with_arg(test_arg)
-    puts "test_arg=#{test_arg}"
+    "test_arg=#{test_arg}"
   end
 
   # A test_command with two args
@@ -49,8 +50,9 @@ class TestClass
 
   # A test_command with a Timestamp argument
   # @param [Timestamp] test_time a test Timestamp argument
+  # @return [Hash] a hash including the given argument
   def self.test_command_arg_timestamp(test_time)
-    test_time
+    {test_time: test_time}
   end
 
   # A test_command with a Boolean argument
@@ -238,7 +240,7 @@ class TestSimpleNumber < Test::Unit::TestCase
         Parameters:
             Timestamp - test_time a test Timestamp argument
         Returns:
-            void
+            [Hash] a hash including the given argument
 
     Command: test_command_arg_false
         Usage: test_command_arg_false [-test_flag=val]
@@ -406,5 +408,63 @@ class TestSimpleNumber < Test::Unit::TestCase
     result = Rubycom.parse_arg(test_arg.to_s)
     expected = test_arg
     assert_equal(expected, result)
+  end
+
+  def test_run
+    tst_out = ''
+    def tst_out.write(data); self << data; end
+    o_stdout, $stdout = $stdout, tst_out
+    o_stderr, $stdout = $stderr, tst_out
+
+    base = TestClass
+    args = ["test_command_with_arg","HelloWorld"]
+    result = Rubycom.run(base,args)
+
+    expected = "test_arg=HelloWorld"
+    expected_out = expected
+    assert_equal(expected, result)
+    assert_equal(expected_out, tst_out.chomp)
+  ensure
+    $stdout = o_stdout
+    $stderr = o_stderr
+  end
+
+  def test_run_nil_return
+    tst_out = ''
+    def tst_out.write(data); self << data; end
+    o_stdout, $stdout = $stdout, tst_out
+    o_stderr, $stdout = $stderr, tst_out
+
+    base = TestClass
+    args = ["test_command"]
+    result = Rubycom.run(base,args)
+
+    expected = nil
+    expected_out = "command test\n"
+    assert_equal(expected, result)
+    assert_equal(expected_out, tst_out.chomp)
+  ensure
+    $stdout = o_stdout
+    $stderr = o_stderr
+  end
+
+  def test_run_hash_return
+    tst_out = ''
+    def tst_out.write(data); self << data; end
+    o_stdout, $stdout = $stdout, tst_out
+    o_stderr, $stdout = $stderr, tst_out
+
+    base = TestClass
+    time = Time.now.to_s
+    args = ["test_command_arg_timestamp", time]
+    result = Rubycom.run(base,args)
+
+    expected = {:test_time=>Time.parse(time)}
+    expected_out = {test_time: Time.parse(time) }.to_yaml
+    assert_equal(expected, result)
+    assert_equal(expected_out, tst_out)
+  ensure
+    $stdout = o_stdout
+    $stderr = o_stderr
   end
 end
