@@ -1,6 +1,6 @@
 require "#{File.expand_path(File.dirname(__FILE__))}/rubycom/version.rb"
-require 'yard'
 require 'yaml'
+require 'method_source'
 
 # Upon inclusion in another Module, Rubycom will attempt to call a method in the including module by parsing
 # ARGV and passing for a Method.name and a list of arguments.
@@ -61,14 +61,24 @@ module Rubycom
       raise "Invalid Command: #{command}." unless valid_commands.include? command_sym
       method = base.public_method(command_sym)
       raise "No public singleton method found for symbol: #{command_sym}" if method.nil?
-      params = self.parse_arguments(method.parameters, arguments)
-      #puts "Param: #{params}"
-      params = params.select{|param| !param.nil?}
-      #nil_params = params.select{|param| !param.nil?}
-      #params = (nil_params.length == params.length) ? nil : params
-
+      parameters = self.get_param_definitions(method)
+      params_hash = self.parse_arguments(parameters, arguments)
+      params = []
+      method.parameters.each { |type, name|
+        if type == :rest
+          if params_hash[name].class == Array
+            params_hash[name].each { |arg|
+              params << arg
+            }
+          else
+            params << params_hash[name]
+          end
+        else
+          params << params_hash[name]
+        end
+      }
       output = nil
-      if arguments.nil? || arguments.empty? #params.nil? || params.empty?
+      if arguments.nil? || arguments.empty?
         output = method.call
       else
         output = method.call(*params)
@@ -82,49 +92,66 @@ module Rubycom
 
   # Parses the given arguments and matches them to the given parameters
   #
-  # @param [Array] parameters an Array of Arrays representing the parameters to match.
-  #                Entries should match :req or :opt followed by the Symbol
+  # @param [Hash] parameters a Hash representing the parameters to match.
+  #         Entries should match :param_name => { type: :req||:opt||:rest,
+  #                                               def:(source_definition),
+  #                                               default:(default_value || :nil_rubycom_required_param)
+  #                                              }
   # @param [Array] arguments an Array of Strings representing the arguments to be parsed
-  # @return [Array] an Array representing the parsed arguments in the order they should be passed to a method
-  def self.parse_arguments(parameters=[], arguments=[])
-    parsed_params = {}
+  # @return [Hash] a Hash mapping the defined parameters to their matching argument values
+  def self.parse_arguments(parameters={}, arguments=[])
     arguments = (!arguments.nil? && arguments.respond_to?(:each)) ? arguments : []
     args_l = arguments.length
-    min_args_l = 0
-    max_args_l = 0
-    parameters.each { |type, sym|
-      parsed_params[sym] = {type: type, val: nil}
-      min_args_l += 1 if type == :req
-      max_args_l += 1
+    req_l = 0
+    opt_l = 0
+    has_rest_param = false
+    parameters.each_value { |def_hash|
+      req_l += 1 if def_hash[:type] == :req
+      opt_l += 1 if def_hash[:type] == :opt
+      has_rest_param = true if def_hash[:type] == :rest
+      def_hash[:default] = self.parse_arg(def_hash[:default])[:arg] unless def_hash[:default] == :nil_rubycom_required_param
     }
-    raise "Wrong number of args expected #{(min_args_l==max_args_l) ? "#{min_args_l}" : "#{min_args_l} to #{max_args_l}"}. Received: #{args_l}" unless (min_args_l<=args_l)&&(args_l<=max_args_l)
-    parsed_req = []
-    parsed_options = {}
+    raise "Wrong number of arguments. Expected at least #{req_l}, received #{args_l}" if args_l < req_l
+    unless has_rest_param
+      raise "Wrong number of arguments. Expected at most #{req_l + opt_l}, received #{args_l}" if args_l > (req_l + opt_l)
+    end
+
+    args = []
     arguments.each { |arg|
-      if arg[0] == '-'
-        key, val = arg.split('=')
-        parsed_options[key[1..-1].to_sym] = self.parse_arg(val)
+      args << self.parse_arg(arg)
+    }
+
+    parsed_args = []
+    parsed_options = {}
+    args.each { |item|
+      key = item.keys.first
+      val = item.values.first
+      if key == :arg
+        parsed_args << val
       else
-        parsed_req << self.parse_arg(arg)
+        parsed_options[key]=val
       end
     }
-    parsed_params.each_key { |key|
-      param_type = parsed_params[key][:type]
-      if (param_type == 'opt') || (param_type == :opt)
-        parsed_options.each { |opt_key, opt_val|
-          parsed_params[key][:val] = opt_val if opt_key == key
-          parsed_options.delete(opt_key) if opt_key == key
-        }
-        parsed_params[key][:val] = parsed_req.shift if parsed_params[key][:val].nil?
-      else
-        parsed_params[key][:val] = parsed_req.shift
+
+    result_hash = {}
+    parameters.each { |param_name, def_hash|
+      if def_hash[:type] == :req
+        raise "No argument available for #{param_name}" if parsed_args.length == 0
+        result_hash[param_name] = parsed_args.shift
+      elsif def_hash[:type] == :opt
+        result_hash[param_name] = parsed_options[param_name]
+        result_hash[param_name] = parsed_args.shift if result_hash[param_name].nil?
+        result_hash[param_name] = parameters[param_name][:default] if result_hash[param_name].nil?
+      elsif def_hash[:type] == :rest
+        if parsed_options[param_name].nil?
+          result_hash[param_name] = parsed_args
+          parsed_args = []
+        else
+          result_hash[param_name] = parsed_options[param_name]
+        end
       end
     }
-    ret_params = []
-    parsed_params.each_key { |key|
-      ret_params<< parsed_params[key][:val]
-    }
-    ret_params
+    result_hash
   end
 
   # Uses YAML.load to parse the given String
@@ -132,9 +159,40 @@ module Rubycom
   # @param [String] arg a String representing the argument to be parsed
   # @return [Object] the result of parsing the given arg with YAML.load
   def self.parse_arg(arg)
-    return nil if arg.nil? || arg.length == 0
-    val = YAML.load(arg) rescue nil
-    val || "#{arg}"
+    param_name = 'arg'
+    arg_val = "#{arg}"
+    result = {}
+    return result[param_name.to_sym]=nil if arg.nil?
+
+    if arg.is_a? String
+      raise "Improper option specification, options must start with one or two dashes. Received: #{arg}" if (arg.match(/^[-]{3,}\w+/) != nil)
+      if arg.match(/^[-]{1,}\w+/) == nil
+        raise "Improper option specification, options must start with one or two dashes. Received: #{arg}" if (arg.match(/^\w+=/) != nil) || (arg.match(/^\w+\s+\S+/) != nil)
+      end
+      if arg.match(/^--/) != nil
+        arg = arg.reverse.chomp('--').reverse
+      elsif arg.match(/^-/) != nil
+        arg = arg.reverse.chomp('-').reverse
+      end
+
+      if arg.match(/^\w+=/) != nil
+        arg_arr = arg.split('=')
+        param_name = arg_arr.shift.strip
+        arg_val = arg_arr.join('=').lstrip
+      elsif arg.match(/^\w+\s+\S+/) != nil
+        arg_arr = arg.split(' ')
+        param_name = arg_arr.shift
+        arg_val = arg_arr.join(' ')
+      end
+    end
+
+    val = YAML.load(arg_val) rescue nil
+    if val.nil?
+      result[param_name.to_sym] = "#{arg_val}"
+    else
+      result[param_name.to_sym] = val
+    end
+    result
   end
 
   # Retrieves the singleton methods in the given base
@@ -240,6 +298,37 @@ module Rubycom
     msg
   end
 
+  # Builds a hash mapping parameter names (as symbols) to their
+  # :type (:req,:opt,:rest), :def (source_definition), :default (default_value || :nil_rubycom_required_param)
+  # for each parameter defined by the given method.
+  #
+  # @param [Method] method the Method who's parameter hash should be built
+  # @return [Hash] a Hash representing the given Method's parameters
+  def self.get_param_definitions(method)
+    raise 'method must be an instance of the Method class' unless method.class == Method
+    source = method.source
+    method_name = method.name.to_s
+    source_lines = source.split("\n")
+    param_names = method.parameters.map { |param| param[1].to_s }
+    param_types = {}
+    method.parameters.each { |type, name| param_types[name] = type }
+    param_def_lines = {}
+    param_names.each { |name| param_def_lines[name] = source_lines.select { |line| line.include?(name) }.first }
+    param_definitions = {}
+    param_def_lines.each { |name, param_def_line|
+      param_candidates = param_def_line.gsub(/(def\s+self\.#{method_name}|def\s+#{method_name})/, '').lstrip.chomp.chomp(')').reverse.chomp('(').reverse
+      param_definitions[name.to_sym] = {}
+      param_definitions[name.to_sym][:def] = param_candidates.split(',').select { |candidate| candidate.include?(name) }.first
+      param_definitions[name.to_sym][:type] = param_types[name.to_sym]
+      if param_definitions[name.to_sym][:def].include?('=')
+        param_definitions[name.to_sym][:default] = param_definitions[name.to_sym][:def].split('=')[1..-1].join('=')
+      else
+        param_definitions[name.to_sym][:default] = :nil_rubycom_required_param
+      end
+    }
+    param_definitions
+  end
+
   # Retrieves the given method's documentation from it's source code.
   #
   # @param [Method] method the Method who's documentation should be retrieved
@@ -247,15 +336,9 @@ module Rubycom
   #                :desc = the first general method comment, :params = each @param comment, :return  = each @return comment,
   #                :extended = all other general method comments and unrecognized annotations
   def self.get_doc(method)
-    source_file = method.source_location.first
-    doc_str = ''
-    method_hash = {}
-    YARD.parse_string(File.read(source_file)).enumerator.each { |sexp|
-      method_hash = self.retrieve_method_hash(sexp, method) if method_hash.length == 0
-      doc_str = method_hash[:method_doc] || 'nil'
-    }
+    doc_str = method.comment || ''
     doc_hash = {}
-    doc_str.split("\n").each { |doc_line|
+    doc_str.split("\n").map { |line| line.gsub(/#\s*/, '') }.each { |doc_line|
       if doc_line.match(/^(@param)/)
         param_doc = doc_line.gsub('@param ', '')
         params = doc_hash[:params]
@@ -284,53 +367,12 @@ module Rubycom
         else
           doc_hash[:extended] << doc_line
         end
-
       end
     }
     if doc_hash[:return].nil?
       doc_hash[:return] = 'void'
     end
     doc_hash
-  end
-
-  # Used in retrieve_method_hash to determine whether to trace activity on STDOUT or not.
-  @parser_dump = false
-
-  # Searches the given s-expression for a YARD::Parser::Ruby::AstNode which has
-  # YARD::Parser::Ruby::AstNode#type == :defs and which has a child node who's YARD::Parser::Ruby::AstNode#source matches
-  # the given Method#name
-  # If @parser_dump == true (default=false) this method will trace it's activity on STDOUT
-  #
-  # @param [YARD::Parser::Ruby::AstNode] sexp_arr the S-expression to search
-  # @param [Method] method the method to search for
-  # @param [Integer] level this variable tracks the depth of the node currently being inspected, new searches should start
-  #                        with this at 0
-  def self.retrieve_method_hash(sexp_arr, method, level=0)
-    tabs = ''
-    level.times { tabs<<' ' } if @parser_dump
-    return {} if (sexp_arr.nil? || sexp_arr.length == 0 || method.nil?)
-    result_hash = {}
-    sexp_arr.each { |sexp|
-      if  !sexp.nil? && sexp.kind_of?(YARD::Parser::Ruby::AstNode)
-        puts "#{tabs}------------parsing: #{sexp}------------------" if @parser_dump
-        if (sexp.type == :defs) && (sexp.children[2].source == "#{method.name}")
-          puts "#{tabs}Node.type=:defs and has child node #{sexp.children[2].source}, #{sexp}\n" if @parser_dump
-          result_hash = {method_doc: sexp.docstring, method_sexp: sexp}
-          puts "#{tabs}returning matched result_hash=#{result_hash}" if @parser_dump
-          puts "#{tabs}---------------------------------------------------" if @parser_dump
-          return result_hash
-        else
-          puts "#{tabs}Node.type not equal to  :defs or no child node matching #{method.name}, #{sexp}\n" if @parser_dump
-          result_hash = self.retrieve_method_hash(sexp.children, method, level+=1) if result_hash.length == 0
-          puts "#{tabs}result_hash set #{result_hash}" if (result_hash.length == 0) && @parser_dump
-        end
-      else
-        puts "#{tabs}skipping: #{sexp}" if @parser_dump
-      end
-    }
-    puts "#{tabs}returning result_hash=#{result_hash}" if @parser_dump
-    puts "#{tabs}---------------------------------------------------" if @parser_dump
-    result_hash
   end
 
 end

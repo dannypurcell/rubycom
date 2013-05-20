@@ -41,6 +41,16 @@ class TestClass
     puts "Output is test_arg=#{test_arg},test_option=#{test_option}"
   end
 
+  # A test_command with an options array
+  # @param [String] test_option an optional test argument
+  # @param [String] test_options an optional array of arguments
+  def self.test_command_options_arr (
+      test_option="test_option_default",
+          *test_options
+  )
+    puts "Output is test_option=#{test_option},test_option_arr=#{test_options}"
+  end
+
   # A test_command with a return argument
   #
   # @param [String] test_arg a test argument
@@ -91,27 +101,18 @@ end
 
 require 'test/unit'
 #noinspection RubyInstanceMethodNamingConvention
-class TestSimpleNumber < Test::Unit::TestCase
-
-  def test_retrieve_method_hash
-    method = TestClass.public_method(:test_command)
-    result_hash = {}
-    YARD.parse_string(File.read(__FILE__)).enumerator.each { |sexp|
-      result_hash = Rubycom.retrieve_method_hash(sexp, method) if result_hash.length == 0
-    }
-    assert_equal('A basic test command', result_hash[:method_doc])
-  end
+class TestRubycom < Test::Unit::TestCase
 
   def test_get_doc
     method = TestClass.public_method(:test_command_with_return)
     result_hash = Rubycom.get_doc(method)
-    assert_equal('A test_command with a return argument', result_hash[:desc])
+    assert_equal('A test_command with a return argument'.gsub(/\n|\r|\s/,''), result_hash[:desc].gsub(/\n|\r|\s/,''))
     assert_equal(2, result_hash[:params].size)
-    assert_equal('[String] test_arg a test argument', result_hash[:params][0])
-    assert_equal('[Integer] test_option_int an optional test argument which happens to be an Integer', result_hash[:params][1])
+    assert_equal('[String] test_arg a test argument'.gsub(/\n|\r|\s/,''), result_hash[:params][0].gsub(/\n|\r|\s/,''))
+    assert_equal('[Integer] test_option_int an optional test argument which happens to be an Integer'.gsub(/\n|\r|\s/,''), result_hash[:params][1].gsub(/\n|\r|\s/,''))
     assert_equal(2, result_hash[:return].size)
-    assert_equal('[Array] a array including both params if test_option_int != 1', result_hash[:return][0])
-    assert_equal('[String] a the first param if test_option_int == 1', result_hash[:return][1])
+    assert_equal('[Array] a array including both params if test_option_int != 1'.gsub(/\n|\r|\s/,''), result_hash[:return][0].gsub(/\n|\r|\s/,''))
+    assert_equal('[String] a the first param if test_option_int == 1'.gsub(/\n|\r|\s/,''), result_hash[:return][1].gsub(/\n|\r|\s/,''))
   end
 
   def test_get_command_usage
@@ -126,7 +127,7 @@ class TestSimpleNumber < Test::Unit::TestCase
         Returns:
             [Boolean] the flag passed in
     END
-    assert_equal(expected, result)
+    assert_equal(expected.gsub(/\n|\r|\s/,''), result.gsub(/\n|\r|\s/,''))
   end
 
   def test_get_command_usage_nil_base
@@ -165,7 +166,7 @@ class TestSimpleNumber < Test::Unit::TestCase
     base = TestClass
     command_name = 'test_command_with_options'
     result = Rubycom.get_command_summary(base, command_name)
-    assert_equal("test_command_with_options - A test_command with an optional argument\n", result)
+    assert_equal("test_command_with_options - A test_command with an optional argument\n".gsub(/\n|\r|\s/,''), result.gsub(/\n|\r|\s/,''))
   end
 
   def test_get_command_summary_no_command
@@ -241,6 +242,14 @@ class TestSimpleNumber < Test::Unit::TestCase
         Returns:
             void
 
+    Command: test_command_options_arr
+        Usage: test_command_options_arr test_options [-test_option=val]
+        Parameters:
+            String - test_option an optional test argument
+            String - test_options an optional array of arguments
+        Returns:
+            void
+
     Command: test_command_with_return
         Usage: test_command_with_return test_arg [-test_option_int=val]
         Parameters:
@@ -279,7 +288,7 @@ class TestSimpleNumber < Test::Unit::TestCase
             void
 
     END
-    assert_equal(expected, result)
+    assert_equal(expected.gsub(/\n|\r|\s/,''), result.gsub(/\n|\r|\s/,''))
   end
 
   def test_get_usage_nil_base
@@ -304,13 +313,14 @@ class TestSimpleNumber < Test::Unit::TestCase
       test_command_with_args - A test_command with two args
       test_command_with_options - A test_command with an optional argument
       test_command_all_options - A test_command with all optional arguments
+      test_command_options_arr - A test_command with an options array
       test_command_with_return - A test_command with a return argument
       test_command_arg_timestamp - A test_command with a Timestamp argument
       test_command_arg_false - A test_command with a Boolean argument
       test_command_arg_arr - A test_command with an array argument
       test_command_arg_hash - A test_command with an Hash argument
     END
-    assert_equal(expected, result)
+    assert_equal(expected.gsub(/\n|\r|\s/,''), result.gsub(/\n|\r|\s/,''))
   end
 
   def test_get_summary_nil_base
@@ -355,21 +365,21 @@ class TestSimpleNumber < Test::Unit::TestCase
   def test_parse_arg_string
     test_arg = "test_arg"
     result = Rubycom.parse_arg(test_arg)
-    expected = "test_arg"
+    expected = {arg: "test_arg"}
     assert_equal(expected, result)
   end
 
   def test_parse_arg_fixnum
     test_arg = "1234512415435"
     result = Rubycom.parse_arg(test_arg)
-    expected = 1234512415435
+    expected = {arg: 1234512415435}
     assert_equal(expected, result)
   end
 
   def test_parse_arg_float
     test_arg = "12345.67890"
     result = Rubycom.parse_arg(test_arg)
-    expected = 12345.67890
+    expected = {arg: 12345.67890}
     assert_equal(expected, result)
   end
 
@@ -377,8 +387,8 @@ class TestSimpleNumber < Test::Unit::TestCase
     time = Time.new
     test_arg = time.to_s
     result = Rubycom.parse_arg(test_arg)
-    expected = time
-    assert_equal(expected.to_i, result.to_i)
+    expected = {arg: time}
+    assert_equal(expected[:arg].to_i, result[:arg].to_i)
   end
 
   def test_parse_arg_datetime
@@ -386,14 +396,14 @@ class TestSimpleNumber < Test::Unit::TestCase
     date = Date.new(time.year, time.month, time.day)
     test_arg = date.to_s
     result = Rubycom.parse_arg(test_arg)
-    expected = date
+    expected = {arg: date}
     assert_equal(expected, result)
   end
 
   def test_parse_arg_array
     test_arg = ["1", 2, "a", 'b']
     result = Rubycom.parse_arg(test_arg.to_s)
-    expected = test_arg
+    expected = {arg: test_arg}
     assert_equal(expected, result)
   end
 
@@ -401,36 +411,40 @@ class TestSimpleNumber < Test::Unit::TestCase
     time = Time.new.to_s
     test_arg = ":a: \"#{time}\""
     result = Rubycom.parse_arg(test_arg.to_s)
-    expected = {a: time}
+    expected = {arg: {a: time}}
     assert_equal(expected, result)
   end
 
   def test_parse_arg_hash_group
     test_arg = ":a: [1,2]\n:b: 1\n:c: test\n:d: 1.0\n:e: \"2013-05-08 23:21:52 -0500\"\n"
     result = Rubycom.parse_arg(test_arg.to_s)
-    expected = {:a => [1, 2], :b => 1, :c => "test", :d => 1.0, :e => "2013-05-08 23:21:52 -0500"}
+    expected = {arg: {:a => [1, 2], :b => 1, :c => "test", :d => 1.0, :e => "2013-05-08 23:21:52 -0500"}}
     assert_equal(expected, result)
   end
 
   def test_parse_arg_yaml
     test_arg = {:a => ["1", 2, "a", 'b'], :b => 1, :c => "test", :d => "#{Time.now.to_s}"}
     result = Rubycom.parse_arg(test_arg.to_yaml)
-    expected = test_arg
+    expected = {arg: test_arg}
     assert_equal(expected, result)
   end
 
   def test_parse_arg_code
     test_arg = 'def self.test_code_method; raise "Fail - test_parse_arg_code";end'
-    result = Rubycom.parse_arg(test_arg.to_s)
-    expected = test_arg
-    assert_equal(expected, result)
+    assert_raise(RuntimeError) {
+      result = Rubycom.parse_arg(test_arg.to_s)
+      expected = {arg: 'def self.test_code_method; raise "Fail - test_parse_arg_code";end'}
+      assert_equal(expected, result)
+    }
   end
 
   def test_run
     tst_out = ''
+
     def tst_out.write(data)
       self << data
     end
+
     o_stdout, $stdout = $stdout, tst_out
     o_stderr, $stdout = $stderr, tst_out
 
@@ -441,7 +455,7 @@ class TestSimpleNumber < Test::Unit::TestCase
     expected = "test_arg=HelloWorld"
     expected_out = expected
     assert_equal(expected, result)
-    assert_equal(expected_out, tst_out.chomp)
+    assert_equal(expected_out.gsub(/\n|\r|\s/,''), tst_out.gsub(/\n|\r|\s/,''))
   ensure
     $stdout = o_stdout
     $stderr = o_stderr
@@ -449,9 +463,11 @@ class TestSimpleNumber < Test::Unit::TestCase
 
   def test_run_nil_return
     tst_out = ''
+
     def tst_out.write(data)
       self << data
     end
+
     o_stdout, $stdout = $stdout, tst_out
     o_stderr, $stdout = $stderr, tst_out
 
@@ -462,7 +478,7 @@ class TestSimpleNumber < Test::Unit::TestCase
     expected = nil
     expected_out = "command test\n"
     assert_equal(expected, result)
-    assert_equal(expected_out, tst_out.chomp)
+    assert_equal(expected_out.gsub(/\n|\r|\s/,''), tst_out.gsub(/\n|\r|\s/,''))
   ensure
     $stdout = o_stdout
     $stderr = o_stderr
@@ -470,9 +486,11 @@ class TestSimpleNumber < Test::Unit::TestCase
 
   def test_run_hash_return
     tst_out = ''
+
     def tst_out.write(data)
       self << data
     end
+
     o_stdout, $stdout = $stdout, tst_out
     o_stderr, $stdout = $stderr, tst_out
 
@@ -484,7 +502,7 @@ class TestSimpleNumber < Test::Unit::TestCase
     expected = {:test_time => Time.parse(time)}
     expected_out = {test_time: Time.parse(time)}.to_yaml
     assert_equal(expected, result)
-    assert_equal(expected_out, tst_out)
+    assert_equal(expected_out.gsub(/\n|\r|\s/,''), tst_out.gsub(/\n|\r|\s/,''))
   ensure
     $stdout = o_stdout
     $stderr = o_stderr
@@ -492,9 +510,11 @@ class TestSimpleNumber < Test::Unit::TestCase
 
   def test_run_all_optional
     tst_out = ''
+
     def tst_out.write(data)
       self << data
     end
+
     o_stdout, $stdout = $stdout, tst_out
     o_stderr, $stdout = $stderr, tst_out
 
@@ -507,7 +527,7 @@ class TestSimpleNumber < Test::Unit::TestCase
     expected = nil
     expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n"
     assert_equal(expected, result)
-    assert_equal(expected_out, tst_out.chomp)
+    assert_equal(expected_out.gsub(/\n|\r|\s/,''), tst_out.gsub(/\n|\r|\s/,''))
   ensure
     $stdout = o_stdout
     $stderr = o_stderr
@@ -515,9 +535,11 @@ class TestSimpleNumber < Test::Unit::TestCase
 
   def test_run_all_opt_override_first
     tst_out = ''
+
     def tst_out.write(data)
       self << data
     end
+
     o_stdout, $stdout = $stdout, tst_out
     o_stderr, $stdout = $stderr, tst_out
 
@@ -530,7 +552,7 @@ class TestSimpleNumber < Test::Unit::TestCase
     expected = nil
     expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n"
     assert_equal(expected, result)
-    assert_equal(expected_out, tst_out.chomp)
+    assert_equal(expected_out.gsub(/\n|\r|\s/,''), tst_out.gsub(/\n|\r|\s/,''))
   ensure
     $stdout = o_stdout
     $stderr = o_stderr
@@ -538,9 +560,11 @@ class TestSimpleNumber < Test::Unit::TestCase
 
   def test_run_all_opt_override_first_alt
     tst_out = ''
+
     def tst_out.write(data)
       self << data
     end
+
     o_stdout, $stdout = $stdout, tst_out
     o_stderr, $stdout = $stderr, tst_out
 
@@ -553,40 +577,44 @@ class TestSimpleNumber < Test::Unit::TestCase
     expected = nil
     expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n"
     assert_equal(expected, result)
-    assert_equal(expected_out, tst_out.chomp)
+    assert_equal(expected_out.gsub(/\n|\r|\s/,''), tst_out.gsub(/\n|\r|\s/,''))
   ensure
     $stdout = o_stdout
     $stderr = o_stderr
   end
 
-  #def test_run_all_opt_override_second
-  #  tst_out = ''
-  #  def tst_out.write(data)
-  #    self << data
-  #  end
-  #  o_stdout, $stdout = $stdout, tst_out
-  #  o_stderr, $stdout = $stderr, tst_out
-  #
-  #  base = TestClass
-  #  args = ["test_command_all_options", "-test_option=test_option_modified"]
-  #  result = Rubycom.run(base, args)
-  #
-  #  e_test_arg = 'test_arg_default'
-  #  e_test_option = 'test_option_modified'
-  #  expected = nil
-  #  expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n"
-  #  assert_equal(expected, result)
-  #  assert_equal(expected_out, tst_out.chomp)
-  #ensure
-  #  $stdout = o_stdout
-  #  $stderr = o_stderr
-  #end
-
-  def test_run_all_opt_use_all_opt
+  def test_run_all_opt_override_second
     tst_out = ''
+
     def tst_out.write(data)
       self << data
     end
+
+    o_stdout, $stdout = $stdout, tst_out
+    o_stderr, $stdout = $stderr, tst_out
+
+    base = TestClass
+    args = ["test_command_all_options", "-test_option=test_option_modified"]
+    result = Rubycom.run(base, args)
+
+    e_test_arg = 'test_arg_default'
+    e_test_option = 'test_option_modified'
+    expected = nil
+    expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n"
+    assert_equal(expected, result)
+    assert_equal(expected_out.gsub(/\n|\r|\s/,''), tst_out.gsub(/\n|\r|\s/,''))
+  ensure
+    $stdout = o_stdout
+    $stderr = o_stderr
+  end
+
+  def test_run_all_opt_use_all_opt
+    tst_out = ''
+
+    def tst_out.write(data)
+      self << data
+    end
+
     o_stdout, $stdout = $stdout, tst_out
     o_stderr, $stdout = $stderr, tst_out
 
@@ -599,7 +627,7 @@ class TestSimpleNumber < Test::Unit::TestCase
     expected = nil
     expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n"
     assert_equal(expected, result)
-    assert_equal(expected_out, tst_out.chomp)
+    assert_equal(expected_out.gsub(/\n|\r|\s/,''), tst_out.gsub(/\n|\r|\s/,''))
   ensure
     $stdout = o_stdout
     $stderr = o_stderr
@@ -607,9 +635,11 @@ class TestSimpleNumber < Test::Unit::TestCase
 
   def test_run_all_opt_reverse
     tst_out = ''
+
     def tst_out.write(data)
       self << data
     end
+
     o_stdout, $stdout = $stdout, tst_out
     o_stderr, $stdout = $stderr, tst_out
 
@@ -622,7 +652,55 @@ class TestSimpleNumber < Test::Unit::TestCase
     expected = nil
     expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n"
     assert_equal(expected, result)
-    assert_equal(expected_out, tst_out.chomp)
+    assert_equal(expected_out.gsub(/\n|\r|\s/,''), tst_out.gsub(/\n|\r|\s/,''))
+  ensure
+    $stdout = o_stdout
+    $stderr = o_stderr
+  end
+
+  def test_run_options_arr
+    tst_out = ''
+
+    def tst_out.write(data)
+      self << data
+    end
+
+    o_stdout, $stdout = $stdout, tst_out
+    o_stderr, $stdout = $stderr, tst_out
+
+    base = TestClass
+    args = ["test_command_options_arr", "test_option1", "test_option2", 1.0, false]
+    result = Rubycom.run(base, args)
+
+    e_test_arg = 'test_option1'
+    e_test_options = ["test_option2", 1.0, false]
+    expected = nil
+    expected_out = "Output is test_option=#{e_test_arg},test_option_arr=#{e_test_options}\n"
+    assert_equal(expected, result)
+    assert_equal(expected_out.gsub(/\n|\r|\s/,''), tst_out.gsub(/\n|\r|\s/,''))
+  ensure
+    $stdout = o_stdout
+    $stderr = o_stderr
+  end
+
+  def test_run_missing_required_arg
+    tst_out = ''
+
+    def tst_out.write(data)
+      self << data
+    end
+
+    o_stdout, $stdout = $stdout, tst_out
+    o_stderr, $stdout = $stderr, tst_out
+
+    base = TestClass
+    args = ["test_command_with_return", "-test_option_int=2"]
+    result = Rubycom.run(base, args)
+
+    expected = nil
+    expected_out = "No argument available for test_arg"
+    assert_equal(expected, result)
+    assert_equal(expected_out, tst_out.split(/\n|\r|\r\n/).first)
   ensure
     $stdout = o_stdout
     $stderr = o_stderr
