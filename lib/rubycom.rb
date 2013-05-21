@@ -211,8 +211,20 @@ module Rubycom
     return_str = ""
     base_singleton_methods = base.singleton_methods(false)
     return_str << "Commands:\n" unless base_singleton_methods.length == 0
+    longest_name = ''
+    base_singleton_methods.each{ |sym|
+      name = sym.to_s
+      longest_name = name if name.length > longest_name.length
+    }
     base_singleton_methods.each { |sym|
-      return_str << "  " << self.get_command_summary(base, sym)
+      cmd_name = sym.to_s
+      sep_length = longest_name.length - cmd_name.length
+      separator = ""
+      sep_length.times{
+        separator << " "
+      }
+      separator << "  -  "
+      return_str << self.get_command_summary(base, sym, separator)
     }
     return_str
   end
@@ -237,12 +249,28 @@ module Rubycom
   # @param [Module] base the module which invoked 'include Rubycom'
   # @param [String] command_name the command to retrieve usage for
   # @return [String] a summary of the given command_name
-  def self.get_command_summary(base, command_name)
+  def self.get_command_summary(base, command_name, separator = '  -  ')
     return 'No command specified.' if command_name.nil? || command_name.length == 0
     m = base.public_method(command_name.to_sym)
     method_doc = self.get_doc(m)
     desc = method_doc[:desc]
-    (desc.nil?||desc=='nil') ? "#{m.name}\n" : "#{m.name} - #{desc}\n"
+    (desc.nil?||desc=='nil'||desc.length==0) ? "#{m.name}\n" : self.get_formatted_summary(m.name, desc, separator)
+  end
+
+  def self.get_formatted_summary(command_name, command_description, separator = '  -  ')
+    width = 95
+    spacer = ""
+    command_name.to_s.split(//).each {
+      spacer << " "
+    }
+    sep_space = ""
+    separator.split(//).each {
+      sep_space << " "
+    }
+    prefix = "#{spacer}#{sep_space}"
+    line_width = width - prefix.length
+    description_msg = command_description.gsub(/(.{1,#{line_width}})(?: +|$)\n?|(.{#{line_width}})/, "#{prefix}"+'\1\2'+"\n")
+    "#{command_name}#{separator}#{description_msg.lstrip}"
   end
 
   # Retrieves the detailed usage description for the given command_name

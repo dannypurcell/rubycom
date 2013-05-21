@@ -69,7 +69,8 @@ class TestClass
     ret
   end
 
-  # A test_command with a Timestamp argument
+  # A test_command with a Timestamp argument and an unnecessarily long description which should overflow when
+  # it tries to line up with other descriptions.
   # @param [Timestamp] test_time a test Timestamp argument
   # @return [Hash] a hash including the given argument
   def self.test_command_arg_timestamp(test_time)
@@ -103,7 +104,7 @@ require 'test/unit'
 class TestCase < Test::Unit::TestCase
   def test
     base = TestClass
-    args = ["test_command_with_return", "-test_option_int=2"]
+    args = ["help"]
     result = Rubycom.run(base, args)
     puts result
   end

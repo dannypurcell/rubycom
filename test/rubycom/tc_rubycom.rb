@@ -65,7 +65,8 @@ class TestClass
     ret
   end
 
-  # A test_command with a Timestamp argument
+  # A test_command with a Timestamp argument and an unnecessarily long description which should overflow when
+  # it tries to line up with other descriptions.
   # @param [Timestamp] test_time a test Timestamp argument
   # @return [Hash] a hash including the given argument
   def self.test_command_arg_timestamp(test_time)
@@ -308,17 +309,19 @@ class TestRubycom < Test::Unit::TestCase
     result = Rubycom.get_summary(base)
     expected = <<-END.gsub(/^ {4}/, '')
     Commands:
-      test_command - A basic test command
-      test_command_with_arg - A test_command with one arg
-      test_command_with_args - A test_command with two args
-      test_command_with_options - A test_command with an optional argument
-      test_command_all_options - A test_command with all optional arguments
-      test_command_options_arr - A test_command with an options array
-      test_command_with_return - A test_command with a return argument
-      test_command_arg_timestamp - A test_command with a Timestamp argument
-      test_command_arg_false - A test_command with a Boolean argument
-      test_command_arg_arr - A test_command with an array argument
-      test_command_arg_hash - A test_command with an Hash argument
+    test_command                -  A basic test command
+    test_command_with_arg       -  A test_command with one arg
+    test_command_with_args      -  A test_command with two args
+    test_command_with_options   -  A test_command with an optional argument
+    test_command_all_options    -  A test_command with all optional arguments
+    test_command_options_arr    -  A test_command with an options array
+    test_command_with_return    -  A test_command with a return argument
+    test_command_arg_timestamp  -  A test_command with a Timestamp argument and an unnecessarily
+                                   long description which should overflow when it tries to line up
+                                   with other descriptions.
+    test_command_arg_false      -  A test_command with a Boolean argument
+    test_command_arg_arr        -  A test_command with an array argument
+    test_command_arg_hash       -  A test_command with an Hash argument
     END
     assert_equal(expected.gsub(/\n|\r|\s/,''), result.gsub(/\n|\r|\s/,''))
   end
