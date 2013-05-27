@@ -13,7 +13,12 @@ module Rubycom
   #
   # @param [Module] base the module which invoked 'include Rubycom'
   def self.included(base)
-    base.module_eval { Rubycom.run(self, ARGV) }
+    base_file_path = caller.first.gsub(/:\d+:.+/,'')
+    base.module_eval {
+      if base_file_path == $0
+        Rubycom.run(self, ARGV)
+      end
+    }
   end
 
   # Looks up the command specified in the first arg and executes with the rest of the args
