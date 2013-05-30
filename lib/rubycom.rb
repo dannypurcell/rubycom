@@ -8,16 +8,24 @@ require 'method_source'
 # If a Method match can not be made, Rubycom will print help instead by parsing source documentation from the including
 # module.
 module Rubycom
+  module RubycomRunner
+  end
 
   # Detects that Rubycom was included in another module and calls Rubycom#run
   #
   # @param [Module] base the module which invoked 'include Rubycom'
   def self.included(base)
-    base_file_path = caller.first.gsub(/:\d+:.+/,'')
-    base.module_eval {
-      if base_file_path == $0
-        Rubycom.run(self, ARGV)
-      end
+    raise 'base must be a module' if base.class != Module
+    base_file_path = caller.first.gsub(/:\d+:.+/, '')
+    if base_file_path == $0
+      self.run_with_runner(base, ARGV)
+    end
+  end
+
+  def self.run_with_runner(base, args=[])
+    RubycomRunner.module_eval {
+      RubycomRunner.extend base
+      Rubycom.run(self, args)
     }
   end
 
@@ -28,6 +36,10 @@ module Rubycom
   def self.run(base, args=[])
     begin
       raise "Invalid base class invocation: #{base}" if base.nil?
+      raise 'base must be a module' if base.class != Module
+      if base != RubycomRunner
+        return self.run_with_runner(base, args)
+      end
 
       command = args[0] || nil
       arguments = args[1..-1] || []
@@ -63,9 +75,9 @@ module Rubycom
     begin
       command_sym = command.to_sym
       valid_commands = self.get_commands(base)
-      raise "Invalid Command: #{command}." unless valid_commands.include? command_sym
+      raise "Invalid Command: #{command}" unless valid_commands.include? command_sym
       method = base.public_method(command_sym)
-      raise "No public singleton method found for symbol: #{command_sym}" if method.nil?
+      raise "No public method found for symbol: #{command_sym}" if method.nil?
       parameters = self.get_param_definitions(method)
       params_hash = self.parse_arguments(parameters, arguments)
       params = []
@@ -172,22 +184,24 @@ module Rubycom
     if arg.is_a? String
       raise "Improper option specification, options must start with one or two dashes. Received: #{arg}" if (arg.match(/^[-]{3,}\w+/) != nil)
       if arg.match(/^[-]{1,}\w+/) == nil
-        raise "Improper option specification, options must start with one or two dashes. Received: #{arg}" if (arg.match(/^\w+=/) != nil) || (arg.match(/^\w+\s+\S+/) != nil)
-      end
-      if arg.match(/^--/) != nil
-        arg = arg.reverse.chomp('--').reverse
-      elsif arg.match(/^-/) != nil
-        arg = arg.reverse.chomp('-').reverse
-      end
+        raise "Improper option specification, options must start with one or two dashes. Received: #{arg}" if (arg.match(/^\w+=/) != nil)
+        val = nil
+      else
+        if arg.match(/^--/) != nil
+          arg = arg.reverse.chomp('--').reverse
+        elsif arg.match(/^-/) != nil
+          arg = arg.reverse.chomp('-').reverse
+        end
 
-      if arg.match(/^\w+=/) != nil
-        arg_arr = arg.split('=')
-        param_name = arg_arr.shift.strip
-        arg_val = arg_arr.join('=').lstrip
-      elsif arg.match(/^\w+\s+\S+/) != nil
-        arg_arr = arg.split(' ')
-        param_name = arg_arr.shift
-        arg_val = arg_arr.join(' ')
+        if arg.match(/^\w+=/) != nil
+          arg_arr = arg.split('=')
+          param_name = arg_arr.shift.strip
+          arg_val = arg_arr.join('=').lstrip
+        elsif arg.match(/^\w+\s+\S+/) != nil
+          arg_arr = arg.split(' ')
+          param_name = arg_arr.shift
+          arg_val = arg_arr.join(' ')
+        end
       end
     end
 
@@ -203,29 +217,29 @@ module Rubycom
   # Retrieves the singleton methods in the given base
   #
   # @param [Module] base the module which invoked 'include Rubycom'
-  # @return [Array] an Array of Symbols representing the singleton methods in the given base
+  # @return [Array] an Array of Symbols representing the command methods in the given base
   def self.get_commands(base)
-    base.singleton_methods(false)
+    base.singleton_methods(true)
   end
 
-  # Retrieves the summary for each singleton method in the given Module
+  # Retrieves the summary for each command method in the given Module
   #
   # @param [Module] base the module which invoked 'include Rubycom'
-  # @return [String] the summary for each singleton method in the given Module
+  # @return [String] the summary for each command method in the given Module
   def self.get_summary(base)
     return_str = ""
-    base_singleton_methods = base.singleton_methods(false)
-    return_str << "Commands:\n" unless base_singleton_methods.length == 0
+    base_command_methods = self.get_commands(base)
+    return_str << "Commands:\n" unless base_command_methods.length == 0
     longest_name = ''
-    base_singleton_methods.each{ |sym|
+    base_command_methods.each { |sym|
       name = sym.to_s
       longest_name = name if name.length > longest_name.length
     }
-    base_singleton_methods.each { |sym|
+    base_command_methods.each { |sym|
       cmd_name = sym.to_s
       sep_length = longest_name.length - cmd_name.length
       separator = ""
-      sep_length.times{
+      sep_length.times {
         separator << " "
       }
       separator << "  -  "
@@ -234,15 +248,15 @@ module Rubycom
     return_str
   end
 
-  # Retrieves the detailed usage description for each singleton method in the given Module
+  # Retrieves the detailed usage description for each command method in the given Module
   #
   # @param [Module] base the module which invoked 'include Rubycom'
-  # @return [String] the detailed usage description for each singleton method in the given Module
+  # @return [String] the detailed usage description for each command method in the given Module
   def self.get_usage(base)
     return_str = ""
-    base_singleton_methods = base.singleton_methods(false)
-    return_str << "Commands:\n" unless base_singleton_methods.length == 0
-    base_singleton_methods.each { |sym|
+    base_command_methods = self.get_commands(base)
+    return_str << "Commands:\n" unless base_command_methods.length == 0
+    base_command_methods.each { |sym|
       cmd_usage = self.get_command_usage(base, sym)
       return_str << "#{cmd_usage}\n" unless cmd_usage.nil? || cmd_usage.empty?
     }
