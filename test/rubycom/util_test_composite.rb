@@ -8,7 +8,7 @@ module UtilTestComposite
   #
   # @param [String] test_arg a test argument
   # @return [String] the test arg
-  def test_composite_command(test_arg)
+  def self.test_composite_command(test_arg)
     test_arg
   end
 

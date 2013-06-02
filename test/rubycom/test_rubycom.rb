@@ -2,45 +2,34 @@ require 'time'
 
 require "#{File.expand_path(File.dirname(__FILE__))}/util_test_module.rb"
 require "#{File.expand_path(File.dirname(__FILE__))}/util_test_composite.rb"
-require "#{File.expand_path(File.dirname(__FILE__))}/util_test_singleton.rb"
-
-module UtilTestModuleRunner
-  extend UtilTestModule
-end
-module UtilTestCompositeRunner
-  extend UtilTestComposite
-end
-module UtilTestSingletonRunner
-  extend UtilTestSingleton
-end
+require "#{File.expand_path(File.dirname(__FILE__))}/util_test_no_singleton.rb"
 
 require 'test/unit'
 #noinspection RubyInstanceMethodNamingConvention
 class TestRubycom < Test::Unit::TestCase
 
   def test_get_doc
-    method = UtilTestModuleRunner.public_method(:test_command_with_return)
+    method = UtilTestModule.public_method(:test_command_with_return)
     result_hash = Rubycom.get_doc(method)
-    assert_equal('A test_command with a return argument'.gsub(/\n|\r|\s/, ''), result_hash[:desc].gsub(/\n|\r|\s/, ''))
-    assert_equal(2, result_hash[:params].size)
-    assert_equal('[String] test_arg a test argument'.gsub(/\n|\r|\s/, ''), result_hash[:params][0].gsub(/\n|\r|\s/, ''))
-    assert_equal('[Integer] test_option_int an optional test argument which happens to be an Integer'.gsub(/\n|\r|\s/, ''), result_hash[:params][1].gsub(/\n|\r|\s/, ''))
+    assert_equal('A test_command with a return argument'.gsub(/\n|\r|\s/, ''), result_hash[:desc].join("\n").gsub(/\n|\r|\s/, ''))
+    assert_equal(2, result_hash[:param].size)
+    assert_equal('[String] test_arg a test argument'.gsub(/\n|\r|\s/, ''), result_hash[:param][0].gsub(/\n|\r|\s/, ''))
+    assert_equal('[Integer] test_option_int an optional test argument which happens to be an Integer'.gsub(/\n|\r|\s/, ''), result_hash[:param][1].gsub(/\n|\r|\s/, ''))
     assert_equal(2, result_hash[:return].size)
-    assert_equal('[Array] a array including both params if test_option_int != 1'.gsub(/\n|\r|\s/, ''), result_hash[:return][0].gsub(/\n|\r|\s/, ''))
+    assert_equal('[Array] an array including both params if test_option_int != 1'.gsub(/\n|\r|\s/, ''), result_hash[:return][0].gsub(/\n|\r|\s/, ''))
     assert_equal('[String] a the first param if test_option_int == 1'.gsub(/\n|\r|\s/, ''), result_hash[:return][1].gsub(/\n|\r|\s/, ''))
   end
 
   def test_get_command_usage
-    base = UtilTestModuleRunner
+    base = UtilTestModule
     command_name = 'test_command_arg_false'
     result = Rubycom.get_command_usage(base, command_name)
     expected = <<-END.gsub(/^ {4}/, '')
-    Command: test_command_arg_false
-        Usage: test_command_arg_false [-test_flag=val]
-        Parameters:
-            Boolean - test_flag a test Boolean argument
-        Returns:
-            [Boolean] the flag passed in
+    Usage: test_command_arg_false [-test_flag=val]
+    Parameters:
+        [Boolean] test_flag a test Boolean argument
+    Returns:
+        [Boolean] the flag passed in
     END
     assert_equal(expected.gsub(/\n|\r|\s/, ''), result.gsub(/\n|\r|\s/, ''))
   end
@@ -52,14 +41,14 @@ class TestRubycom < Test::Unit::TestCase
   end
 
   def test_get_command_usage_nil_command
-    base = UtilTestModuleRunner
+    base = UtilTestModule
     command_name = nil
     result = Rubycom.get_command_usage(base, command_name)
     assert_equal('No command specified.', result)
   end
 
   def test_get_command_usage_no_command
-    base = UtilTestModuleRunner
+    base = UtilTestModule
     command_name = ''
     result = Rubycom.get_command_usage(base, command_name)
     assert_equal('No command specified.', result)
@@ -72,20 +61,20 @@ class TestRubycom < Test::Unit::TestCase
   end
 
   def test_get_command_usage_invalid_command
-    base = UtilTestModuleRunner
+    base = UtilTestModule
     command_name = '123asd!@#'
     assert_raise(NameError) { Rubycom.get_command_usage(base, command_name) }
   end
 
   def test_get_command_summary
-    base = UtilTestModuleRunner
+    base = UtilTestModule
     command_name = 'test_command_with_options'
     result = Rubycom.get_command_summary(base, command_name)
     assert_equal("test_command_with_options - A test_command with an optional argument\n".gsub(/\n|\r|\s/, ''), result.gsub(/\n|\r|\s/, ''))
   end
 
   def test_get_command_summary_no_command
-    base = UtilTestModuleRunner
+    base = UtilTestModule
     command_name = ''
     result = Rubycom.get_command_summary(base, command_name)
     assert_equal('No command specified.', result)
@@ -98,109 +87,45 @@ class TestRubycom < Test::Unit::TestCase
   end
 
   def test_get_command_summary_nil_command
-    base = UtilTestModuleRunner
+    base = UtilTestModule
     command_name = nil
     result = Rubycom.get_command_summary(base, command_name)
     assert_equal('No command specified.', result)
   end
 
   def test_get_command_summary_wrong_base
-    base = UtilTestSingletonRunner
+    base = UtilTestNoSingleton
     command_name = 'test_command_with_options'
     assert_raise(NameError) { Rubycom.get_command_summary(base, command_name) }
   end
 
   def test_get_command_summary_bad_command
-    base = UtilTestModuleRunner
+    base = UtilTestModule
     command_name = '!_fail_command_'
     assert_raise(NameError) { Rubycom.get_command_summary(base, command_name) }
   end
 
   def test_get_usage
-    base = UtilTestModuleRunner
+    base = UtilTestModule
     result = Rubycom.get_usage(base)
     expected = <<-END.gsub(/^ {4}/, '')
+    Usage:
+      UtilTestModule <command> [args]
+
     Commands:
-    Command: test_command
-        Usage: test_command
-        Returns:
-            void
-
-    Command: test_command_with_arg
-        Usage: test_command_with_arg test_arg
-        Parameters:
-            String - test_arg a test argument
-        Returns:
-            void
-
-    Command: test_command_with_args
-        Usage: test_command_with_args test_arg another_test_arg
-        Parameters:
-            String - test_arg a test argument
-            String - another_test_arg another test argument
-        Returns:
-            void
-
-    Command: test_command_with_options
-        Usage: test_command_with_options test_arg [-test_option=val]
-        Parameters:
-            String - test_arg a test argument
-            String - test_option an optional test argument
-        Returns:
-            void
-
-    Command: test_command_all_options
-        Usage: test_command_all_options [-test_arg=val|-test_option=val]
-        Parameters:
-            String - test_arg an optional test argument
-            String - test_option another optional test argument
-        Returns:
-            void
-
-    Command: test_command_options_arr
-        Usage: test_command_options_arr test_options [-test_option=val]
-        Parameters:
-            String - test_option an optional test argument
-            String - test_options an optional array of arguments
-        Returns:
-            void
-
-    Command: test_command_with_return
-        Usage: test_command_with_return test_arg [-test_option_int=val]
-        Parameters:
-            String - test_arg a test argument
-            Integer - test_option_int an optional test argument which happens to be an Integer
-        Returns:
-            [Array] a array including both params if test_option_int != 1
-            [String] a the first param if test_option_int == 1
-
-    Command: test_command_arg_timestamp
-        Usage: test_command_arg_timestamp test_time
-        Parameters:
-            Timestamp - test_time a test Timestamp argument
-        Returns:
-            [Hash] a hash including the given argument
-
-    Command: test_command_arg_false
-        Usage: test_command_arg_false [-test_flag=val]
-        Parameters:
-            Boolean - test_flag a test Boolean argument
-        Returns:
-            [Boolean] the flag passed in
-
-    Command: test_command_arg_arr
-        Usage: test_command_arg_arr [-test_arr=val]
-        Parameters:
-            Array - test_arr an Array test argument
-        Returns:
-            void
-
-    Command: test_command_arg_hash
-        Usage: test_command_arg_hash [-test_hash=val]
-        Parameters:
-            Hash - test_hash a Hash test argument
-        Returns:
-            void
+      test_command                -  A basic test command
+      test_command_with_arg       -  A test_command with one arg
+      test_command_with_args      -  A test_command with two args
+      test_command_with_options   -  A test_command with an optional argument
+      test_command_all_options    -  A test_command with all optional arguments
+      test_command_options_arr    -  A test_command with an options array
+      test_command_with_return    -  A test_command with a return argument
+      test_command_arg_timestamp  -  A test_command with a Timestamp argument and an unnecessarily
+                                     long description which should overflow when
+                                     it tries to line up with other descriptions.
+      test_command_arg_false      -  A test_command with a Boolean argument
+      test_command_arg_arr        -  A test_command with an array argument
+      test_command_arg_hash       -  A test_command with an Hash argument
 
     END
     assert_equal(expected.gsub(/\n|\r|\s/, ''), result.gsub(/\n|\r|\s/, ''))
@@ -213,13 +138,13 @@ class TestRubycom < Test::Unit::TestCase
   end
 
   def test_get_usage_no_singleton_base
-    base = UtilTestSingletonRunner
+    base = UtilTestNoSingleton
     result = Rubycom.get_usage(base)
     assert_equal('', result)
   end
 
   def test_get_summary
-    base = UtilTestModuleRunner
+    base = UtilTestModule
     result = Rubycom.get_summary(base)
     expected = <<-END.gsub(/^ {4}/, '')
     Commands:
@@ -243,18 +168,30 @@ class TestRubycom < Test::Unit::TestCase
   def test_get_summary_nil_base
     base = nil
     result = Rubycom.get_summary(base)
-    assert_equal('', result)
+    assert_equal('No Commands found for .', result)
   end
 
   def test_get_summary_no_singleton_base
-    base = UtilTestSingletonRunner
+    base = UtilTestNoSingleton
     result = Rubycom.get_summary(base)
-    assert_equal('', result)
+    assert_equal('No Commands found for UtilTestNoSingleton.', result)
   end
 
-  def test_get_commands
-    test_command_list = UtilTestModuleRunner.singleton_methods(true).select { |sym| sym != :yaml_tag }
-    result_command_list = Rubycom.get_commands(UtilTestModuleRunner)
+  def test_get_top_level_commands
+    test_command_list = [:test_command, :test_command_with_arg, :test_command_with_args, :test_command_with_options,
+                         :test_command_all_options, :test_command_options_arr, :test_command_with_return,
+                         :test_command_arg_timestamp, :test_command_arg_false, :test_command_arg_arr,
+                         :test_command_arg_hash]
+    result_command_list = Rubycom.get_top_level_commands(UtilTestModule)
+    assert_equal(test_command_list.length, result_command_list.length)
+    test_command_list.each { |sym|
+      assert_includes(result_command_list, sym)
+    }
+  end
+
+  def test_get_top_level_commands_nil_base
+    test_command_list = []
+    result_command_list = Rubycom.get_top_level_commands(nil)
     assert_equal(test_command_list.length, result_command_list.length)
     test_command_list.each { |sym|
       assert_includes(result_command_list, sym)
@@ -262,7 +199,7 @@ class TestRubycom < Test::Unit::TestCase
   end
 
   def test_get_commands_nil_base
-    test_command_list = nil.singleton_methods(false)
+    test_command_list = []
     result_command_list = Rubycom.get_commands(nil)
     assert_equal(test_command_list.length, result_command_list.length)
     test_command_list.each { |sym|
@@ -270,9 +207,9 @@ class TestRubycom < Test::Unit::TestCase
     }
   end
 
-  def test_get_commands_singleton_base
+  def test_get_top_level_commands_singleton_base
     test_command_list = []
-    result_command_list = Rubycom.get_commands(UtilTestSingletonRunner)
+    result_command_list = Rubycom.get_top_level_commands(UtilTestNoSingleton)
     assert_equal(test_command_list.length, result_command_list.length)
     test_command_list.each { |sym|
       assert_includes(result_command_list, sym)
@@ -368,6 +305,47 @@ class TestRubycom < Test::Unit::TestCase
     result = Rubycom.run(base, args)
 
     expected = "test_arg=HelloWorld"
+    expected_out = expected
+    assert_equal(expected, result)
+    assert_equal(expected_out.gsub(/\n|\r|\s/, ''), tst_out.gsub(/\n|\r|\s/, ''))
+  ensure
+    $stdout = o_stdout
+    $stderr = o_stderr
+  end
+
+  def test_run_help
+    tst_out = ''
+
+    def tst_out.write(data)
+      self << data
+    end
+
+    o_stdout, $stdout = $stdout, tst_out
+    o_stderr, $stderr = $stderr, tst_out
+
+    base = UtilTestModule
+    args = ["help"]
+    result = Rubycom.run(base, args)
+
+    expected = <<-END.gsub(/^ {4}/,'')
+    Usage:
+        UtilTestModule <command> [args]
+
+    Commands:
+    test_command                -  A basic test command
+    test_command_with_arg       -  A test_command with one arg
+    test_command_with_args      -  A test_command with two args
+    test_command_with_options   -  A test_command with an optional argument
+    test_command_all_options    -  A test_command with all optional arguments
+    test_command_options_arr    -  A test_command with an options array
+    test_command_with_return    -  A test_command with a return argument
+    test_command_arg_timestamp  -  A test_command with a Timestamp argument and an unnecessarily
+                                   long description which should overflow when
+                                   it tries to line up with other descriptions.
+    test_command_arg_false      -  A test_command with a Boolean argument
+    test_command_arg_arr        -  A test_command with an array argument
+    test_command_arg_hash       -  A test_command with an Hash argument
+    END
     expected_out = expected
     assert_equal(expected, result)
     assert_equal(expected_out.gsub(/\n|\r|\s/, ''), tst_out.gsub(/\n|\r|\s/, ''))

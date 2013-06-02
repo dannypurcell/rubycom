@@ -3,13 +3,11 @@ require 'yaml'
 require 'method_source'
 
 # Upon inclusion in another Module, Rubycom will attempt to call a method in the including module by parsing
-# ARGV and passing for a Method.name and a list of arguments.
-# If found Rubycom will call the Method specified by ARGV[0] with the parameters parsed from ARGV[1..-1]
-# If a Method match can not be made, Rubycom will print help instead by parsing source documentation from the including
-# module.
+# ARGV for a method name and a list of arguments.
+# If found Rubycom will call the method specified in ARGV with the parameters parsed from the remaining arguments
+# If a Method match can not be made, Rubycom will print help instead by parsing source comments from the including
+# module or it's included modules.
 module Rubycom
-  module RubycomRunner
-  end
 
   # Detects that Rubycom was included in another module and calls Rubycom#run
   #
@@ -18,15 +16,10 @@ module Rubycom
     raise 'base must be a module' if base.class != Module
     base_file_path = caller.first.gsub(/:\d+:.+/, '')
     if base_file_path == $0
-      self.run_with_runner(base, ARGV)
+      base.module_eval {
+        Rubycom.run(base, ARGV)
+      }
     end
-  end
-
-  def self.run_with_runner(base, args=[])
-    RubycomRunner.module_eval {
-      RubycomRunner.extend base
-      Rubycom.run(self, args)
-    }
   end
 
   # Looks up the command specified in the first arg and executes with the rest of the args
@@ -36,20 +29,19 @@ module Rubycom
   def self.run(base, args=[])
     begin
       raise "Invalid base class invocation: #{base}" if base.nil?
-      raise 'base must be a module' if base.class != Module
-      if base != RubycomRunner
-        return self.run_with_runner(base, args)
-      end
-
       command = args[0] || nil
       arguments = args[1..-1] || []
 
       if command == 'help'
         help_topic = arguments[0]
         if help_topic.nil?
-          puts self.get_summary(base)
+          usage = self.get_usage(base)
+          puts usage
+          return usage
         else
-          puts self.get_command_usage(base, help_topic)
+          cmd_usage = self.get_command_usage(base, help_topic, arguments[1..-1])
+          puts cmd_usage
+          return cmd_usage
         end
       else
         output = self.run_command(base, command, arguments)
@@ -61,6 +53,7 @@ module Rubycom
 
     rescue Exception => e
       puts e
+      puts e.backtrace
       puts self.get_summary(base)
     end
   end
@@ -74,33 +67,37 @@ module Rubycom
     raise 'No command specified.' if command.nil? || command.length == 0
     begin
       command_sym = command.to_sym
-      valid_commands = self.get_commands(base)
+      valid_commands = self.get_top_level_commands(base)
       raise "Invalid Command: #{command}" unless valid_commands.include? command_sym
-      method = base.public_method(command_sym)
-      raise "No public method found for symbol: #{command_sym}" if method.nil?
-      parameters = self.get_param_definitions(method)
-      params_hash = self.parse_arguments(parameters, arguments)
-      params = []
-      method.parameters.each { |type, name|
-        if type == :rest
-          if params_hash[name].class == Array
-            params_hash[name].each { |arg|
-              params << arg
-            }
+      if base.included_modules.map { |mod| mod.name.to_sym }.include?(command.to_sym)
+        self.run_command(eval(command), arguments[0], arguments[1..-1])
+      else
+        method = base.public_method(command_sym)
+        raise "No public method found for symbol: #{command_sym}" if method.nil?
+        parameters = self.get_param_definitions(method)
+        params_hash = self.parse_arguments(parameters, arguments)
+        params = []
+        method.parameters.each { |type, name|
+          if type == :rest
+            if params_hash[name].class == Array
+              params_hash[name].each { |arg|
+                params << arg
+              }
+            else
+              params << params_hash[name]
+            end
           else
             params << params_hash[name]
           end
+        }
+        output = nil
+        if arguments.nil? || arguments.empty?
+          output = method.call
         else
-          params << params_hash[name]
+          output = method.call(*params)
         end
-      }
-      output = nil
-      if arguments.nil? || arguments.empty?
-        output = method.call
-      else
-        output = method.call(*params)
+        output
       end
-      output
     rescue Exception => e
       puts e
       puts self.get_command_usage(base, command)
@@ -214,53 +211,30 @@ module Rubycom
     result
   end
 
-  # Retrieves the singleton methods in the given base
-  #
-  # @param [Module] base the module which invoked 'include Rubycom'
-  # @return [Array] an Array of Symbols representing the command methods in the given base
-  def self.get_commands(base)
-    base.singleton_methods(true)
-  end
-
   # Retrieves the summary for each command method in the given Module
   #
   # @param [Module] base the module which invoked 'include Rubycom'
   # @return [String] the summary for each command method in the given Module
   def self.get_summary(base)
-    return_str = ""
-    base_command_methods = self.get_commands(base)
-    return_str << "Commands:\n" unless base_command_methods.length == 0
-    longest_name = ''
-    base_command_methods.each { |sym|
-      name = sym.to_s
-      longest_name = name if name.length > longest_name.length
-    }
-    base_command_methods.each { |sym|
-      cmd_name = sym.to_s
-      sep_length = longest_name.length - cmd_name.length
-      separator = ""
-      sep_length.times {
-        separator << " "
-      }
-      separator << "  -  "
-      return_str << self.get_command_summary(base, sym, separator)
-    }
-    return_str
+    longest_name_length = self.get_longest_command_name(base).length
+    self.get_top_level_commands(base).each_with_index.map { |sym, index|
+      separator = self.get_separator(sym, longest_name_length)
+      if index == 0
+        "Commands:\n" << self.get_command_summary(base, sym, separator)
+      else
+        self.get_command_summary(base, sym, separator)
+      end
+    }.reduce(:+) or "No Commands found for #{base}."
   end
 
-  # Retrieves the detailed usage description for each command method in the given Module
-  #
-  # @param [Module] base the module which invoked 'include Rubycom'
-  # @return [String] the detailed usage description for each command method in the given Module
-  def self.get_usage(base)
-    return_str = ""
-    base_command_methods = self.get_commands(base)
-    return_str << "Commands:\n" unless base_command_methods.length == 0
-    base_command_methods.each { |sym|
-      cmd_usage = self.get_command_usage(base, sym)
-      return_str << "#{cmd_usage}\n" unless cmd_usage.nil? || cmd_usage.empty?
+  def self.get_separator(sym, spacer_length=0)
+    cmd_name = sym.to_s
+    sep_length = spacer_length - cmd_name.length
+    separator = ""
+    sep_length.times {
+      separator << " "
     }
-    return_str
+    separator << "  -  "
   end
 
   # Retrieves the summary for the given command_name
@@ -269,11 +243,16 @@ module Rubycom
   # @param [String] command_name the command to retrieve usage for
   # @return [String] a summary of the given command_name
   def self.get_command_summary(base, command_name, separator = '  -  ')
+    raise NameError.new("Can not get usage for #{command_name} with base: #{base||"nil"}") if base.nil? || !base.respond_to?(:included_modules)
     return 'No command specified.' if command_name.nil? || command_name.length == 0
-    m = base.public_method(command_name.to_sym)
-    method_doc = self.get_doc(m)
-    desc = method_doc[:desc]
-    (desc.nil?||desc=='nil'||desc.length==0) ? "#{m.name}\n" : self.get_formatted_summary(m.name, desc, separator)
+    if base.included_modules.map { |mod| mod.name.to_sym }.include?(command_name.to_sym)
+      desc = "Sub-Module-Command"
+    else
+      m = base.public_method(command_name.to_sym)
+      method_doc = self.get_doc(m)
+      desc = method_doc[:desc].join("\n")
+    end
+    (desc.nil?||desc=='nil'||desc.length==0) ? "#{command_name}\n" : self.get_formatted_summary(command_name, desc, separator)
   end
 
   def self.get_formatted_summary(command_name, command_description, separator = '  -  ')
@@ -292,57 +271,58 @@ module Rubycom
     "#{command_name}#{separator}#{description_msg.lstrip}"
   end
 
-  # Retrieves the detailed usage description for the given command_name
+  # Retrieves the usage description for the given Module with a list of command methods
+  #
+  # @param [Module] base the module which invoked 'include Rubycom'
+  # @return [String] the usage description for the module with a list of command methods
+  def self.get_usage(base)
+    return '' if base.nil? || !base.respond_to?(:included_modules)
+    return '' if self.get_top_level_commands(base).size == 0
+    "Usage:\n    #{base} <command> [args]\n\n" << self.get_summary(base)
+  end
+
+  # Retrieves the usage description for the given command_name
   #
   # @param [Module] base the module which invoked 'include Rubycom'
   # @param [String] command_name the command to retrieve usage for
+  # @param [Array] args the remaining args other than the command_name, used of sub-command look-ups
   # @return [String] the detailed usage description for the given command_name
-  def self.get_command_usage(base, command_name)
+  def self.get_command_usage(base, command_name, args=[])
+    raise NameError.new("Can not get usage for #{command_name} with base: #{base||"nil"}") if base.nil? || !base.respond_to?(:included_modules)
     return 'No command specified.' if command_name.nil? || command_name.length == 0
-    m = base.public_method(command_name.to_sym)
-    optional_params = []
-    required_params = []
-    method_params = m.parameters || []
-    method_params.each { |type, sym|
-      if (type == :opt) || (type == 'opt')
-        optional_params << sym
+    if base.included_modules.map { |mod| mod.name.to_sym }.include?(command_name.to_sym)
+      if args.empty?
+        self.get_usage(eval(command_name.to_s))
       else
-        required_params << sym
+        self.get_command_usage(eval(command_name.to_s), args[0], args[1..-1])
       end
-    }
-    method_doc = self.get_doc(m)
-    msg = "Command: #{m.name}\n"
-    msg << "    Usage: #{m.name}"
-    required_params.each { |param|
-      msg << " #{param}"
-    }
-    msg << "\n" if (required_params.length != 0) && (optional_params.length == 0)
-    msg << ' [' unless optional_params.length == 0
-    optional_params.each_with_index { |option, index|
-      if index == 0
-        msg << "-#{option}=val"
+    else
+      m = base.public_method(command_name.to_sym)
+      method_doc = self.get_doc(m)
+
+      <<-END.gsub(/^ {6}/, '')
+      Usage: #{m.name} #{self.get_param_usage(m)}
+      #{"Parameters:" unless m.parameters.empty?}
+          #{method_doc[:param].join("\n    ") unless method_doc[:param].nil?}
+      Returns:
+          #{method_doc[:return].join("\n    ") rescue 'void'}
+      END
+    end
+  end
+
+  def self.get_param_usage(method)
+    method.parameters.map { |type, param| {type => param}
+    }.group_by { |entry| entry.keys.first
+    }.map { |key, val| Hash[key, val.map { |param| param.values.first }]
+    }.reduce(&:merge).map{|type,arr|
+      if type == :req
+        Hash[type, arr.map{|param| " <#{param.to_s}>"}.reduce(:+)]
+      elsif type == :opt
+        Hash[type, "[#{arr.map{|param| "-#{param}=val"}.join("|")}]"]
       else
-        msg << "|-#{option}=val"
+        Hash[type, "[&#{arr.join(',')}]"]
       end
-    }
-    msg << "]\n" unless optional_params.length == 0
-    msg << "    Parameters:\n" unless (required_params.length == 0) && (optional_params.length == 0)
-    if method_doc[:params].respond_to?(:each)
-      method_doc[:params].each { |param_doc|
-        msg << "        #{param_doc.gsub('[', '').gsub(']', ' -')}\n"
-      }
-    else
-      msg << "\n"
-    end
-    msg << "    Returns:\n"
-    if method_doc[:return].respond_to?(:each)
-      method_doc[:return].each { |return_doc|
-        msg << "        #{return_doc}\n"
-      }
-    else
-      msg << "        #{method_doc[:return]}\n" unless method_doc[:return].nil? || (method_doc[:return].length == 0)
-    end
-    msg
+    }.reduce(&:merge).values.join(" ")
   end
 
   # Builds a hash mapping parameter names (as symbols) to their
@@ -383,43 +363,65 @@ module Rubycom
   #                :desc = the first general method comment, :params = each @param comment, :return  = each @return comment,
   #                :extended = all other general method comments and unrecognized annotations
   def self.get_doc(method)
-    doc_str = method.comment || ''
-    doc_hash = {}
-    doc_str.split("\n").map { |line| line.gsub(/#\s*/, '') }.each { |doc_line|
-      if doc_line.match(/^(@param)/)
-        param_doc = doc_line.gsub('@param ', '')
-        params = doc_hash[:params]
-        if params.nil? || params.length == 0
-          params = [param_doc]
-        else
-          params << param_doc
-        end
-        doc_hash[:params] = params
-      elsif doc_line.match(/^(@return)/)
-        if doc_hash[:return].nil?
-          doc_hash[:return] = doc_line.gsub('@return ', '')
-        else
-          doc_hash[:return] = [doc_hash[:return]]
-          doc_hash[:return] << doc_line.gsub('@return ', '')
-        end
-      elsif doc_line.match(/^(@.+\s+)$/) == nil
-        if doc_hash[:desc].nil?
-          doc_hash[:desc] = doc_line unless doc_line.lstrip.length==0
-        else
-          doc_hash[:desc] << doc_line unless doc_line.lstrip.length==0
-        end
+    method.comment.split("\n").map { |line|
+      line.gsub(/#\s*/, '') }.group_by { |doc|
+      if doc.match(/^@\w+/).nil?
+        :desc
       else
-        if doc_hash[:extended].nil?
-          doc_hash[:extended] = doc_line
-        else
-          doc_hash[:extended] << doc_line
-        end
+        doc.match(/^@\w+/).to_s.gsub('@', '').to_sym
       end
+    }.map { |key, val|
+      Hash[key, val.map { |val_line| val_line.gsub(/^@\w+/, '').lstrip }.select { |line| line != '' }]
+    }.reduce(&:merge)
+  end
+
+  def self.get_longest_command_name(base)
+    return '' if base.nil?
+    self.get_commands(base, false).map { |_, mod_hash|
+      mod_hash[:commands] + mod_hash[:inclusions].flatten }.flatten.max_by(&:size) or ''
+  end
+
+  # Retrieves the singleton methods in the given base
+  #
+  # @param [Module] base the module which invoked 'include Rubycom'
+  # @param [Boolean] if true recursively search for included modules' commands, if false return only top level commands.
+  # @return [Hash] a Hash of Symbols representing the command methods in the given base and it's included modules (if all=true)
+  def self.get_commands(base, all=true)
+    return {} if base.nil? || !base.respond_to?(:singleton_methods) || !base.respond_to?(:included_modules)
+    excluded_commands = [:included, :extended]
+    excluded_modules = [:Rubycom]
+    {
+        base.name.to_sym => {
+            commands: base.singleton_methods(true).select { |sym| !excluded_commands.include?(sym) },
+            inclusions: base.included_modules.select { |mod| !excluded_modules.include?(mod.name.to_sym) }.map { |mod|
+              if all
+                self.get_commands(mod)
+              else
+                mod.name.to_sym
+              end
+            }
+        }
     }
-    if doc_hash[:return].nil?
-      doc_hash[:return] = 'void'
-    end
-    doc_hash
+  end
+
+  def self.get_top_level_commands(base)
+    return {} if base.nil? || !base.respond_to?(:singleton_methods) || !base.respond_to?(:included_modules)
+    excluded_commands = [:included, :extended]
+    excluded_modules = [:Rubycom]
+    base.singleton_methods(true).select { |sym| !excluded_commands.include?(sym) } +
+        base.included_modules.select { |mod| !excluded_modules.include?(mod.name.to_sym) }.map { |mod| mod.name.to_sym }.flatten
+  end
+
+  def self.index_commands(base)
+    excluded_commands = [:included, :extended]
+    excluded_modules = [:Rubycom]
+    Hash[base.singleton_methods(true).select { |sym| !excluded_commands.include?(sym) }.map { |sym|
+      [sym, base]
+    }].merge(
+        base.included_modules.select { |mod| !excluded_modules.include?(mod.name.to_sym) }.map { |mod|
+          self.index_commands(mod)
+        }.reduce(&:merge) || {}
+    )
   end
 
 end
