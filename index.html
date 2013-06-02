@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Rubycom by dannypurcell</title>
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="javascripts/respond.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <!--[if lt IE 8]>
+    <link rel="stylesheet" href="stylesheets/ie.css">
+    <![endif]-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+  </head>
+  <body>
+      <div id="header">
+        <nav>
+          <li class="fork"><a href="https://github.com/dannypurcell/Rubycom">View On GitHub</a></li>
+          <li class="downloads"><a href="https://github.com/dannypurcell/Rubycom/zipball/master">ZIP</a></li>
+          <li class="downloads"><a href="https://github.com/dannypurcell/Rubycom/tarball/master">TAR</a></li>
+          <li class="title">DOWNLOADS</li>
+        </nav>
+      </div><!-- end header -->
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Rubycom</h1>
+          <p>Makes building a command line tool as easy as writing a function library</p>
+          <hr>
+          <span class="credits left">Project maintained by <a href="https://github.com/dannypurcell">dannypurcell</a></span>
+          <span class="credits right">Hosted on GitHub Pages &mdash; Theme by <a href="http://twitter.com/#!/michigangraham">mattgraham</a></span>
+        </div>
+
+        <h2>
+<a name="rubycom" class="anchor" href="#rubycom"><span class="octicon octicon-link"></span></a>Rubycom</h2>
+
+<p>© Danny Purcell 2013 | MIT license</p>
+
+<p>Makes creating command line tools as easy as writing a function library.</p>
+
+<p>When a module is run from the terminal and includes Rubycom, Rubycom will parse ARGV for a command name,
+match the command name to a public singleton method (self.method_name()) in the including module, and run the method
+with the given arguments.</p>
+
+<h2>
+<a name="features" class="anchor" href="#features"><span class="octicon octicon-link"></span></a>Features</h2>
+
+<p>Allows the user to write a properly documented module/class as a function library and convert it to a command line tool
+by simply including Rubycom at the bottom.</p>
+
+<ul>
+<li>Provides a Command Line Interface for any function library simply by stating <code>include Rubycom</code> at the bottom.</li>
+<li>Public singleton methods are made accessible from the terminal. Usage documentation is pulled from method comments.</li>
+<li>Method parameters become required CLI arguments. Optional (defaulted) parameters become CLI options.</li>
+<li>Command consoles can be built up by including other modules before including Rubycom.</li>
+<li>Included modules become commands, their public singleton methods become sub-commands.</li>
+</ul><h2>
+<a name="raison-detre" class="anchor" href="#raison-detre"><span class="octicon octicon-link"></span></a>Raison d'etre</h2>
+
+<ul>
+<li>From scratch command line scripts often include redundant ARGV parsing code, little to no testing, slim documentation.</li>
+<li>OptionParser and the like help script authors define options for a script.
+They provide structure to the redundant code and slightly easier argument parsing.</li>
+<li>Thor and the like provide a framework the script author will extend to create command line tools.
+Prescriptive approach creates consistency but requires the script author to learn the framework and conform.</li>
+</ul><p>While these are things are nice, we are still writing redundant code and
+tightly coupling the functional code to the interface which presents it.</p>
+
+<p>At it's core a terminal command is a function. Rather than requiring the authors to make concessions for the presentation and
+tightly couple the functional code to the interface, it would be nice if the author could simply write a function library
+and attach the interface to it.</p>
+
+<h2>
+<a name="how-it-works" class="anchor" href="#how-it-works"><span class="octicon octicon-link"></span></a>How it works</h2>
+
+<p>Rubycom attaches the CLI to the functional code. The author is free to write the functional code as any other.
+If a set of functions needs to be accessible from the terminal, just <code>include Rubycom</code> at the bottom and run the ruby file.</p>
+
+<ul>
+<li>Public singleton methods are made accessible from the terminal.</li>
+<li>ARGV is parsed for a method to run and arguments.</li>
+<li>Usage documentation is pulled from method comments.</li>
+<li>Method parameters become required CLI arguments.</li>
+<li>Optional (defaulted) parameters become CLI options.</li>
+</ul><p>The result is a function library which can be consumed easily from other classes/modules and which is accessible from the command line.</p>
+
+<h2>
+<a name="coming-soon" class="anchor" href="#coming-soon"><span class="octicon octicon-link"></span></a>Coming Soon</h2>
+
+<ul>
+<li>Run Pre-configured sets of commands from a yaml file by calling  job </li>
+<li>Job help/usage output will include descriptions from command for each step</li>
+<li>Build a job yaml by running each command in sequence with a special option --job_add </li>
+<li>Edit job files from the command line using special options.
+
+<ul>
+<li>--job_update </li>
+<li>--job_rm </li>
+</ul>
+</li>
+</ul>
+      </section>
+
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+    
+  </body>
+</html>
