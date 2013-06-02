@@ -37,7 +37,7 @@ class TestRubycom < Test::Unit::TestCase
   def test_get_command_usage_nil_base
     base = nil
     command_name = 'test_command'
-    assert_raise(NameError) { Rubycom.get_command_usage(base, command_name) }
+    assert_raise(Rubycom::CLIError) { Rubycom.get_command_usage(base, command_name) }
   end
 
   def test_get_command_usage_nil_command
@@ -57,13 +57,13 @@ class TestRubycom < Test::Unit::TestCase
   def test_get_command_usage_bad_base
     base = ":asd"
     command_name = 'test_command_with_options'
-    assert_raise(NameError) { Rubycom.get_command_usage(base, command_name) }
+    assert_raise(Rubycom::CLIError) { Rubycom.get_command_usage(base, command_name) }
   end
 
   def test_get_command_usage_invalid_command
     base = UtilTestModule
     command_name = '123asd!@#'
-    assert_raise(NameError) { Rubycom.get_command_usage(base, command_name) }
+    assert_raise(Rubycom::CLIError) { Rubycom.get_command_usage(base, command_name) }
   end
 
   def test_get_command_summary
@@ -83,7 +83,7 @@ class TestRubycom < Test::Unit::TestCase
   def test_get_command_summary_nil_base
     base = nil
     command_name = 'test_command_with_options'
-    assert_raise(NameError) { Rubycom.get_command_summary(base, command_name) }
+    assert_raise(Rubycom::CLIError) { Rubycom.get_command_summary(base, command_name) }
   end
 
   def test_get_command_summary_nil_command
@@ -96,13 +96,13 @@ class TestRubycom < Test::Unit::TestCase
   def test_get_command_summary_wrong_base
     base = UtilTestNoSingleton
     command_name = 'test_command_with_options'
-    assert_raise(NameError) { Rubycom.get_command_summary(base, command_name) }
+    assert_raise(Rubycom::CLIError) { Rubycom.get_command_summary(base, command_name) }
   end
 
   def test_get_command_summary_bad_command
     base = UtilTestModule
     command_name = '!_fail_command_'
-    assert_raise(NameError) { Rubycom.get_command_summary(base, command_name) }
+    assert_raise(Rubycom::CLIError) { Rubycom.get_command_summary(base, command_name) }
   end
 
   def test_get_usage
@@ -578,6 +578,11 @@ class TestRubycom < Test::Unit::TestCase
 
   def test_run_missing_required_arg
     tst_out = ''
+
+    def tst_out.puts(data)
+      self << data.to_s << "\n"
+      nil
+    end
 
     def tst_out.write(data)
       self << data

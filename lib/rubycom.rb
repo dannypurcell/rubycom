@@ -8,12 +8,13 @@ require 'method_source'
 # If a Method match can not be made, Rubycom will print help instead by parsing source comments from the including
 # module or it's included modules.
 module Rubycom
+  class CLIError < StandardError;end
 
   # Detects that Rubycom was included in another module and calls Rubycom#run
   #
   # @param [Module] base the module which invoked 'include Rubycom'
   def self.included(base)
-    raise 'base must be a module' if base.class != Module
+    raise CLIError, 'base must be a module' if base.class != Module
     base_file_path = caller.first.gsub(/:\d+:.+/, '')
     if base_file_path == $0
       base.module_eval {
@@ -28,7 +29,7 @@ module Rubycom
   # @param [Array] args a String Array representing the command to run followed by arguments to be passed
   def self.run(base, args=[])
     begin
-      raise "Invalid base class invocation: #{base}" if base.nil?
+      raise CLIError, "Invalid base class invocation: #{base}" if base.nil?
       command = args[0] || nil
       arguments = args[1..-1] || []
 
@@ -51,10 +52,8 @@ module Rubycom
         return output
       end
 
-    rescue Exception => e
-      puts e
-      puts e.backtrace
-      puts self.get_summary(base)
+    rescue CLIError => e
+      abort "#{e}\n#{self.get_summary(base)}"
     end
   end
 
@@ -64,43 +63,37 @@ module Rubycom
   # @param [String] command the name of the Method to call
   # @param [Array] arguments a String Array representing the arguments for the given command
   def self.run_command(base, command, arguments=[])
-    raise 'No command specified.' if command.nil? || command.length == 0
-    begin
-      command_sym = command.to_sym
-      valid_commands = self.get_top_level_commands(base)
-      raise "Invalid Command: #{command}" unless valid_commands.include? command_sym
-      if base.included_modules.map { |mod| mod.name.to_sym }.include?(command.to_sym)
-        self.run_command(eval(command), arguments[0], arguments[1..-1])
-      else
-        method = base.public_method(command_sym)
-        raise "No public method found for symbol: #{command_sym}" if method.nil?
-        parameters = self.get_param_definitions(method)
-        params_hash = self.parse_arguments(parameters, arguments)
-        params = []
-        method.parameters.each { |type, name|
-          if type == :rest
-            if params_hash[name].class == Array
-              params_hash[name].each { |arg|
-                params << arg
-              }
-            else
-              params << params_hash[name]
-            end
+    raise CLIError, 'No command specified.' if command.nil? || command.length == 0
+    command_sym = command.to_sym
+    valid_commands = self.get_top_level_commands(base)
+    raise CLIError, "Invalid Command: #{command}" unless valid_commands.include? command_sym
+    if base.included_modules.map { |mod| mod.name.to_sym }.include?(command.to_sym)
+      self.run_command(eval(command), arguments[0], arguments[1..-1])
+    else
+      method = base.public_method(command_sym)
+      raise CLIError, "No public method found for symbol: #{command_sym}" if method.nil?
+      parameters = self.get_param_definitions(method)
+      params_hash = self.parse_arguments(parameters, arguments)
+      params = []
+      method.parameters.each { |type, name|
+        if type == :rest
+          if params_hash[name].class == Array
+            params_hash[name].each { |arg|
+              params << arg
+            }
           else
             params << params_hash[name]
           end
-        }
-        output = nil
-        if arguments.nil? || arguments.empty?
-          output = method.call
         else
-          output = method.call(*params)
+          params << params_hash[name]
         end
-        output
+      }
+      if arguments.nil? || arguments.empty?
+        output = method.call
+      else
+        output = method.call(*params)
       end
-    rescue Exception => e
-      puts e
-      puts self.get_command_usage(base, command)
+      output
     end
   end
 
@@ -125,9 +118,9 @@ module Rubycom
       has_rest_param = true if def_hash[:type] == :rest
       def_hash[:default] = self.parse_arg(def_hash[:default])[:arg] unless def_hash[:default] == :nil_rubycom_required_param
     }
-    raise "Wrong number of arguments. Expected at least #{req_l}, received #{args_l}" if args_l < req_l
+    raise CLIError, "Wrong number of arguments. Expected at least #{req_l}, received #{args_l}" if args_l < req_l
     unless has_rest_param
-      raise "Wrong number of arguments. Expected at most #{req_l + opt_l}, received #{args_l}" if args_l > (req_l + opt_l)
+      raise CLIError, "Wrong number of arguments. Expected at most #{req_l + opt_l}, received #{args_l}" if args_l > (req_l + opt_l)
     end
 
     args = []
@@ -150,7 +143,7 @@ module Rubycom
     result_hash = {}
     parameters.each { |param_name, def_hash|
       if def_hash[:type] == :req
-        raise "No argument available for #{param_name}" if parsed_args.length == 0
+        raise CLIError, "No argument available for #{param_name}" if parsed_args.length == 0
         result_hash[param_name] = parsed_args.shift
       elsif def_hash[:type] == :opt
         result_hash[param_name] = parsed_options[param_name]
@@ -177,12 +170,11 @@ module Rubycom
     arg_val = "#{arg}"
     result = {}
     return result[param_name.to_sym]=nil if arg.nil?
-
     if arg.is_a? String
-      raise "Improper option specification, options must start with one or two dashes. Received: #{arg}" if (arg.match(/^[-]{3,}\w+/) != nil)
+      raise CLIError, "Improper option specification, options must start with one or two dashes. Received: #{arg}" if (arg.match(/^[-]{3,}\w+/) != nil)
       if arg.match(/^[-]{1,}\w+/) == nil
-        raise "Improper option specification, options must start with one or two dashes. Received: #{arg}" if (arg.match(/^\w+=/) != nil)
-        val = nil
+        raise CLIError, "Improper option specification, options must start with one or two dashes. Received: #{arg}" if (arg.match(/^\w+=/) != nil)
+
       else
         if arg.match(/^--/) != nil
           arg = arg.reverse.chomp('--').reverse
@@ -243,11 +235,12 @@ module Rubycom
   # @param [String] command_name the command to retrieve usage for
   # @return [String] a summary of the given command_name
   def self.get_command_summary(base, command_name, separator = '  -  ')
-    raise NameError.new("Can not get usage for #{command_name} with base: #{base||"nil"}") if base.nil? || !base.respond_to?(:included_modules)
+    raise CLIError, "Can not get usage for #{command_name} with base: #{base||"nil"}" if base.nil? || !base.respond_to?(:included_modules)
     return 'No command specified.' if command_name.nil? || command_name.length == 0
     if base.included_modules.map { |mod| mod.name.to_sym }.include?(command_name.to_sym)
       desc = "Sub-Module-Command"
     else
+      raise CLIError, "Invalid command for #{base}, #{command_name}" unless base.public_methods.include?(command_name.to_sym)
       m = base.public_method(command_name.to_sym)
       method_doc = self.get_doc(m)
       desc = method_doc[:desc].join("\n")
@@ -288,7 +281,7 @@ module Rubycom
   # @param [Array] args the remaining args other than the command_name, used of sub-command look-ups
   # @return [String] the detailed usage description for the given command_name
   def self.get_command_usage(base, command_name, args=[])
-    raise NameError.new("Can not get usage for #{command_name} with base: #{base||"nil"}") if base.nil? || !base.respond_to?(:included_modules)
+    raise CLIError, "Can not get usage for #{command_name} with base: #{base||"nil"}" if base.nil? || !base.respond_to?(:included_modules)
     return 'No command specified.' if command_name.nil? || command_name.length == 0
     if base.included_modules.map { |mod| mod.name.to_sym }.include?(command_name.to_sym)
       if args.empty?
@@ -297,6 +290,7 @@ module Rubycom
         self.get_command_usage(eval(command_name.to_s), args[0], args[1..-1])
       end
     else
+      raise CLIError, "Invalid command for #{base}, #{command_name}" unless base.public_methods.include?(command_name.to_sym)
       m = base.public_method(command_name.to_sym)
       method_doc = self.get_doc(m)
 
@@ -314,11 +308,11 @@ module Rubycom
     method.parameters.map { |type, param| {type => param}
     }.group_by { |entry| entry.keys.first
     }.map { |key, val| Hash[key, val.map { |param| param.values.first }]
-    }.reduce(&:merge).map{|type,arr|
+    }.reduce(&:merge).map { |type, arr|
       if type == :req
-        Hash[type, arr.map{|param| " <#{param.to_s}>"}.reduce(:+)]
+        Hash[type, arr.map { |param| " <#{param.to_s}>" }.reduce(:+)]
       elsif type == :opt
-        Hash[type, "[#{arr.map{|param| "-#{param}=val"}.join("|")}]"]
+        Hash[type, "[#{arr.map { |param| "-#{param}=val" }.join("|")}]"]
       else
         Hash[type, "[&#{arr.join(',')}]"]
       end
@@ -332,7 +326,7 @@ module Rubycom
   # @param [Method] method the Method who's parameter hash should be built
   # @return [Hash] a Hash representing the given Method's parameters
   def self.get_param_definitions(method)
-    raise 'method must be an instance of the Method class' unless method.class == Method
+    raise CLIError, 'method must be an instance of the Method class' unless method.class == Method
     source = method.source
     method_name = method.name.to_s
     source_lines = source.split("\n")
