@@ -378,7 +378,7 @@ module Rubycom
   # Retrieves the singleton methods in the given base
   #
   # @param [Module] base the module which invoked 'include Rubycom'
-  # @param [Boolean] if true recursively search for included modules' commands, if false return only top level commands.
+  # @param [Boolean] all if true recursively search for included modules' commands, if false return only top level commands.
   # @return [Hash] a Hash of Symbols representing the command methods in the given base and it's included modules (if all=true)
   def self.get_commands(base, all=true)
     return {} if base.nil? || !base.respond_to?(:singleton_methods) || !base.respond_to?(:included_modules)

@@ -626,4 +626,5 @@ class TestRubycom < Test::Unit::TestCase
     $stdout = o_stdout
     $stderr = o_stderr
   end
+
 end
