@@ -347,7 +347,7 @@ class TestRubycom < Test::Unit::TestCase
     test_command_arg_hash       -  A test_command with an Hash argument
     END
     expected_out = expected
-    assert_equal(expected, result)
+    assert_equal(expected.gsub(/\n|\r|\s/, ''), result.gsub(/\n|\r|\s/, ''))
     assert_equal(expected_out.gsub(/\n|\r|\s/, ''), tst_out.gsub(/\n|\r|\s/, ''))
   ensure
     $stdout = o_stdout
@@ -596,9 +596,13 @@ class TestRubycom < Test::Unit::TestCase
     result = Rubycom.run(base, args)
 
     expected = nil
-    expected_out = "No argument available for test_arg"
+    expected_out = "No argument available for test_arg\n"
+
     assert_equal(expected, result)
-    assert_equal(expected_out, tst_out.split(/\n|\r|\r\n/).first)
+    assert_equal(expected_out, tst_out.lines.first)
+    Rubycom.get_command_usage(base,args[0],args[1..-1]).each_line{|expected_line|
+      assert_equal(true, tst_out.lines.include?(expected_line))
+    }
   ensure
     $stdout = o_stdout
     $stderr = o_stderr

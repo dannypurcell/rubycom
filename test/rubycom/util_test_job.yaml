@@ -1,0 +1,7 @@
+---
+1:
+  cmd: ./util_test_composite.rb test_composite_command "Hello World"
+2:
+  cmd: util_test_composite.rb UtilTestModule test_command_options_arr '["Hello World 1", world2]'
+3:
+  cmd: util_test_module.rb test_command_with_args

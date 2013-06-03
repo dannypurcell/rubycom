@@ -8,7 +8,8 @@ require 'method_source'
 # If a Method match can not be made, Rubycom will print help instead by parsing source comments from the including
 # module or it's included modules.
 module Rubycom
-  class CLIError < StandardError;end
+  class CLIError < StandardError;
+  end
 
   # Detects that Rubycom was included in another module and calls Rubycom#run
   #
@@ -44,6 +45,30 @@ module Rubycom
           puts cmd_usage
           return cmd_usage
         end
+      elsif command == 'job'
+        begin
+          raise CLIError, 'No job specified' if arguments[0].nil? || arguments[0].empty?
+          job_hash = YAML.load_file(arguments[0])
+          STDOUT.sync = true
+          if arguments.delete('-test') || arguments.delete('--test')
+            puts "[Test Job #{arguments[0]}]"
+            job_hash.each { |step, step_hash|
+              puts "[Step #{step}/#{job_hash.length}] #{step_hash['cmd']}"
+            }
+          else
+            puts "[Job #{arguments[0]}]"
+            job_hash.each { |step, step_hash|
+              puts "[Step #{step}/#{job_hash.length}] #{step_hash['cmd']}"
+              cmd_arr = step_hash['cmd'].split(" ")
+              cmd_file = File.realpath(File.dirname(arguments[0]))+'/'+cmd_arr.first.split(/\/|\\/).last
+              args = cmd_arr[1..-1].join(" ")
+              cmd = "ruby #{cmd_file} #{args}"
+              system(cmd)
+            }
+          end
+        rescue CLIError => e
+          $stderr.puts e
+        end
       else
         output = self.run_command(base, command, arguments)
         std_output = nil
@@ -53,7 +78,8 @@ module Rubycom
       end
 
     rescue CLIError => e
-      abort "#{e}\n#{self.get_summary(base)}"
+      $stderr.puts e
+      $stderr.puts self.get_summary(base)
     end
   end
 
@@ -64,36 +90,41 @@ module Rubycom
   # @param [Array] arguments a String Array representing the arguments for the given command
   def self.run_command(base, command, arguments=[])
     raise CLIError, 'No command specified.' if command.nil? || command.length == 0
-    command_sym = command.to_sym
-    valid_commands = self.get_top_level_commands(base)
-    raise CLIError, "Invalid Command: #{command}" unless valid_commands.include? command_sym
-    if base.included_modules.map { |mod| mod.name.to_sym }.include?(command.to_sym)
-      self.run_command(eval(command), arguments[0], arguments[1..-1])
-    else
-      method = base.public_method(command_sym)
-      raise CLIError, "No public method found for symbol: #{command_sym}" if method.nil?
-      parameters = self.get_param_definitions(method)
-      params_hash = self.parse_arguments(parameters, arguments)
-      params = []
-      method.parameters.each { |type, name|
-        if type == :rest
-          if params_hash[name].class == Array
-            params_hash[name].each { |arg|
-              params << arg
-            }
+    begin
+      command_sym = command.to_sym
+      valid_commands = self.get_top_level_commands(base)
+      raise CLIError, "Invalid Command: #{command}" unless valid_commands.include? command_sym
+      if base.included_modules.map { |mod| mod.name.to_sym }.include?(command.to_sym)
+        self.run_command(eval(command), arguments[0], arguments[1..-1])
+      else
+        method = base.public_method(command_sym)
+        raise CLIError, "No public method found for symbol: #{command_sym}" if method.nil?
+        parameters = self.get_param_definitions(method)
+        params_hash = self.parse_arguments(parameters, arguments)
+        params = []
+        method.parameters.each { |type, name|
+          if type == :rest
+            if params_hash[name].class == Array
+              params_hash[name].each { |arg|
+                params << arg
+              }
+            else
+              params << params_hash[name]
+            end
           else
             params << params_hash[name]
           end
+        }
+        if arguments.nil? || arguments.empty?
+          output = method.call
         else
-          params << params_hash[name]
+          output = method.call(*params)
         end
-      }
-      if arguments.nil? || arguments.empty?
-        output = method.call
-      else
-        output = method.call(*params)
+        output
       end
-      output
+    rescue CLIError => e
+      $stderr.puts e
+      $stderr.puts self.get_command_usage(base, command, arguments)
     end
   end
 
@@ -174,7 +205,6 @@ module Rubycom
       raise CLIError, "Improper option specification, options must start with one or two dashes. Received: #{arg}" if (arg.match(/^[-]{3,}\w+/) != nil)
       if arg.match(/^[-]{1,}\w+/) == nil
         raise CLIError, "Improper option specification, options must start with one or two dashes. Received: #{arg}" if (arg.match(/^\w+=/) != nil)
-
       else
         if arg.match(/^--/) != nil
           arg = arg.reverse.chomp('--').reverse
@@ -193,8 +223,11 @@ module Rubycom
         end
       end
     end
-
-    val = YAML.load(arg_val) rescue nil
+    begin
+      val = YAML.load(arg_val)
+    rescue Exception
+      val = nil
+    end
     if val.nil?
       result[param_name.to_sym] = "#{arg_val}"
     else
