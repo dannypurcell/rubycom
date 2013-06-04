@@ -1,5 +1,6 @@
 require "#{File.expand_path(File.dirname(__FILE__))}/rubycom/version.rb"
 require 'yaml'
+require 'find'
 require 'method_source'
 
 # Upon inclusion in another Module, Rubycom will attempt to call a method in the including module by parsing
@@ -50,20 +51,18 @@ module Rubycom
           raise CLIError, 'No job specified' if arguments[0].nil? || arguments[0].empty?
           job_hash = YAML.load_file(arguments[0])
           STDOUT.sync = true
+          env = job_hash['env']
           if arguments.delete('-test') || arguments.delete('--test')
             puts "[Test Job #{arguments[0]}]"
-            job_hash.each { |step, step_hash|
+            job_hash['steps'].each { |step, step_hash|
               puts "[Step #{step}/#{job_hash.length}] #{step_hash['cmd']}"
             }
           else
             puts "[Job #{arguments[0]}]"
-            job_hash.each { |step, step_hash|
+            job_hash['steps'].each { |step, step_hash|
               puts "[Step #{step}/#{job_hash.length}] #{step_hash['cmd']}"
-              cmd_arr = step_hash['cmd'].split(" ")
-              cmd_file = File.realpath(File.dirname(arguments[0]))+'/'+cmd_arr.first.split(/\/|\\/).last
-              args = cmd_arr[1..-1].join(" ")
-              cmd = "ruby #{cmd_file} #{args}"
-              system(cmd)
+              env.map{|key,val| step_hash['cmd'].gsub!("env[#{key}]","#{((val.class == String)&&(val.match(/\w+/)))? "\"#{val}\"":val}")}
+              system(step_hash['cmd'])
             }
           end
         rescue CLIError => e

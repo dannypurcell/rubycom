@@ -1,7 +1,14 @@
 ---
-1:
-  cmd: ./util_test_composite.rb test_composite_command "Hello World"
-2:
-  cmd: util_test_composite.rb UtilTestModule test_command_options_arr '["Hello World 1", world2]'
-3:
-  cmd: util_test_module.rb test_command_with_args
+env:
+  test_msg: Hello World
+  test_arg: 123
+  working_dir: ./test/rubycom
+steps:
+  1:
+    cmd: ruby env[working_dir]/util_test_composite.rb test_composite_command env[test_msg]
+  2:
+    cmd: ruby env[working_dir]/util_test_composite.rb UtilTestModule test_command_options_arr '["Hello World 1", world2]'
+  3:
+    cmd: ruby env[working_dir]/util_test_module.rb test_command_with_args env[test_msg] env[test_arg]
+  4:
+    cmd: ls
