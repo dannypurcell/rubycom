@@ -2,7 +2,14 @@ require "bundler/gem_tasks"
 require 'rake/testtask'
 require 'yard'
 
-task :default => [:test, :yard, :package]
+task :default => [:clean, :test, :yard, :package]
+
+task :clean do
+  FileUtils.rm_rf('./doc')
+  FileUtils.rm_rf('./.yardoc')
+  FileUtils.rm_rf('./pkg')
+  FileUtils.rm(Dir.glob('./rubycom-*.gem'))
+end
 
 task :test do
   test_files = Dir.glob("**/test/*/test_*.rb")
@@ -14,7 +21,7 @@ end
 
 YARD::Rake::YardocTask.new
 
-task :package => [:test, :yard] do
+task :package => [:clean, :test, :yard] do
   gem_specs = Dir.glob("**/*.gemspec")
   gem_specs.each { |gem_spec|
     system("gem build #{gem_spec}")
