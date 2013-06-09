@@ -51,7 +51,6 @@ module Rubycom
           raise CLIError, 'No job specified' if arguments[0].nil? || arguments[0].empty?
           job_hash = YAML.load_file(arguments[0])
           STDOUT.sync = true
-          env = job_hash['env']
           if arguments.delete('-test') || arguments.delete('--test')
             puts "[Test Job #{arguments[0]}]"
             job_hash['steps'].each { |step, step_hash|
@@ -61,7 +60,7 @@ module Rubycom
             puts "[Job #{arguments[0]}]"
             job_hash['steps'].each { |step, step_hash|
               puts "[Step #{step}/#{job_hash.length}] #{step_hash['cmd']}"
-              env.map{|key,val| step_hash['cmd'].gsub!("env[#{key}]","#{((val.class == String)&&(val.match(/\w+/)))? "\"#{val}\"":val}")}
+              job_hash['env'].map { |key, val| step_hash['cmd'].gsub!("env[#{key}]", "#{((val.class == String)&&(val.match(/\w+/))) ? "\"#{val}\"" : val}") }
               system(step_hash['cmd'])
             }
           end
@@ -90,36 +89,15 @@ module Rubycom
   def self.run_command(base, command, arguments=[])
     raise CLIError, 'No command specified.' if command.nil? || command.length == 0
     begin
-      command_sym = command.to_sym
-      valid_commands = self.get_top_level_commands(base)
-      raise CLIError, "Invalid Command: #{command}" unless valid_commands.include? command_sym
+      raise CLIError, "Invalid Command: #{command}" unless self.get_top_level_commands(base).include? command.to_sym
       if base.included_modules.map { |mod| mod.name.to_sym }.include?(command.to_sym)
         self.run_command(eval(command), arguments[0], arguments[1..-1])
       else
-        method = base.public_method(command_sym)
-        raise CLIError, "No public method found for symbol: #{command_sym}" if method.nil?
-        parameters = self.get_param_definitions(method)
-        params_hash = self.parse_arguments(parameters, arguments)
-        params = []
-        method.parameters.each { |type, name|
-          if type == :rest
-            if params_hash[name].class == Array
-              params_hash[name].each { |arg|
-                params << arg
-              }
-            else
-              params << params_hash[name]
-            end
-          else
-            params << params_hash[name]
-          end
-        }
-        if arguments.nil? || arguments.empty?
-          output = method.call
-        else
-          output = method.call(*params)
-        end
-        output
+        method = base.public_method(command.to_sym)
+        raise CLIError, "No public method found for symbol: #{command.to_sym}" if method.nil?
+        param_defs = self.get_param_definitions(method)
+        args = self.parse_arguments(param_defs, arguments)
+        (arguments.nil? || arguments.empty?) ? method.call : method.call(*method.parameters.map { |arr| args[arr[1]]}.flatten)
       end
     rescue CLIError => e
       $stderr.puts e
@@ -137,58 +115,32 @@ module Rubycom
   # @param [Array] arguments an Array of Strings representing the arguments to be parsed
   # @return [Hash] a Hash mapping the defined parameters to their matching argument values
   def self.parse_arguments(parameters={}, arguments=[])
-    arguments = (!arguments.nil? && arguments.respond_to?(:each)) ? arguments : []
-    args_l = arguments.length
-    req_l = 0
-    opt_l = 0
-    has_rest_param = false
-    parameters.each_value { |def_hash|
-      req_l += 1 if def_hash[:type] == :req
-      opt_l += 1 if def_hash[:type] == :opt
-      has_rest_param = true if def_hash[:type] == :rest
-      def_hash[:default] = self.parse_arg(def_hash[:default])[:arg] unless def_hash[:default] == :nil_rubycom_required_param
-    }
-    raise CLIError, "Wrong number of arguments. Expected at least #{req_l}, received #{args_l}" if args_l < req_l
-    unless has_rest_param
-      raise CLIError, "Wrong number of arguments. Expected at most #{req_l + opt_l}, received #{args_l}" if args_l > (req_l + opt_l)
-    end
+    raise CLIError, 'parameters may not be nil' if parameters.nil?
+    raise CLIError, 'arguments may not be nil' if arguments.nil?
+    types = parameters.values.group_by { |hsh| hsh[:type] }.map { |type, defs_arr| Hash[type, defs_arr.length] }.reduce(&:merge) || {}
+    raise CLIError, "Wrong number of arguments. Expected at least #{types[:req]}, received #{arguments.length}" if arguments.length < (types[:req]||0)
+    raise CLIError, "Wrong number of arguments. Expected at most #{(types[:req]||0) + (types[:opt]||0)}, received #{arguments.length}" if types[:rest].nil? && (arguments.length > ((types[:req]||0) + (types[:opt]||0)))
 
-    args = []
-    arguments.each { |arg|
-      args << self.parse_arg(arg)
-    }
+    sorted_args = arguments.map { |arg|
+      Rubycom.parse_arg(arg)
+    }.group_by { |hsh|
+      hsh.keys.first
+    }.map { |key, arr|
+      (key == :rubycom_non_opt_arg) ? Hash[key, arr.map { |hsh| hsh.values }.flatten] : Hash[key, arr.map { |hsh| hsh.values.first }.reduce(&:merge)]
+    }.reduce(&:merge) || {}
 
-    parsed_args = []
-    parsed_options = {}
-    args.each { |item|
-      key = item.keys.first
-      val = item.values.first
-      if key == :arg
-        parsed_args << val
-      else
-        parsed_options[key]=val
-      end
-    }
-
-    result_hash = {}
-    parameters.each { |param_name, def_hash|
+    parameters.map { |param_sym, def_hash|
       if def_hash[:type] == :req
-        raise CLIError, "No argument available for #{param_name}" if parsed_args.length == 0
-        result_hash[param_name] = parsed_args.shift
+        raise CLIError, "No argument available for #{param_sym}" if sorted_args[:rubycom_non_opt_arg].nil? || sorted_args[:rubycom_non_opt_arg].length == 0
+        Hash[param_sym, sorted_args[:rubycom_non_opt_arg].shift]
       elsif def_hash[:type] == :opt
-        result_hash[param_name] = parsed_options[param_name]
-        result_hash[param_name] = parsed_args.shift if result_hash[param_name].nil?
-        result_hash[param_name] = parameters[param_name][:default] if result_hash[param_name].nil?
+        Hash[param_sym, ((sorted_args[param_sym]) ? sorted_args[param_sym] : ((sorted_args[:rubycom_non_opt_arg].shift || parameters[param_sym][:default]) rescue parameters[param_sym][:default]))]
       elsif def_hash[:type] == :rest
-        if parsed_options[param_name].nil?
-          result_hash[param_name] = parsed_args
-          parsed_args = []
-        else
-          result_hash[param_name] = parsed_options[param_name]
-        end
+        ret = Hash[param_sym, ((sorted_args[param_sym]) ? sorted_args[param_sym] : sorted_args[:rubycom_non_opt_arg])]
+        sorted_args[:rubycom_non_opt_arg] = []
+        ret
       end
-    }
-    result_hash
+    }.reduce(&:merge)
   end
 
   # Uses YAML.load to parse the given String
@@ -196,43 +148,19 @@ module Rubycom
   # @param [String] arg a String representing the argument to be parsed
   # @return [Object] the result of parsing the given arg with YAML.load
   def self.parse_arg(arg)
-    param_name = 'arg'
-    arg_val = "#{arg}"
-    result = {}
-    return result[param_name.to_sym]=nil if arg.nil?
-    if arg.is_a? String
-      raise CLIError, "Improper option specification, options must start with one or two dashes. Received: #{arg}" if (arg.match(/^[-]{3,}\w+/) != nil)
-      if arg.match(/^[-]{1,}\w+/) == nil
-        raise CLIError, "Improper option specification, options must start with one or two dashes. Received: #{arg}" if (arg.match(/^\w+=/) != nil)
-      else
-        if arg.match(/^--/) != nil
-          arg = arg.reverse.chomp('--').reverse
-        elsif arg.match(/^-/) != nil
-          arg = arg.reverse.chomp('-').reverse
-        end
-
-        if arg.match(/^\w+=/) != nil
-          arg_arr = arg.split('=')
-          param_name = arg_arr.shift.strip
-          arg_val = arg_arr.join('=').lstrip
-        elsif arg.match(/^\w+\s+\S+/) != nil
-          arg_arr = arg.split(' ')
-          param_name = arg_arr.shift
-          arg_val = arg_arr.join(' ')
-        end
-      end
-    end
-    begin
-      val = YAML.load(arg_val)
-    rescue Exception
-      val = nil
-    end
-    if val.nil?
-      result[param_name.to_sym] = "#{arg_val}"
+    return Hash[:rubycom_non_opt_arg, nil] if arg.nil?
+    if arg.is_a?(String) && ((arg.match(/^[-]{3,}\w+/) != nil) || ((arg.match(/^[-]{1,}\w+/) == nil) && (arg.match(/^\w+=/) != nil)))
+      raise CLIError, "Improper option specification, options must start with one or two dashes. Received: #{arg}"
+    elsif arg.is_a?(String) && arg.match(/^(-|--)\w+[=|\s]{1}/) != nil
+      k, v = arg.partition(/^(-|--)\w+[=|\s]{1}/).select { |part|
+        !part.empty?
+      }.each_with_index.map { |part, index|
+        index == 0 ? part.chomp('=').gsub(/^--/, '').gsub(/^-/, '').strip.to_sym : (YAML.load(part) rescue "#{part}")
+      }
+      Hash[k, v]
     else
-      result[param_name.to_sym] = val
+      Hash[:rubycom_non_opt_arg, (YAML.load("#{arg}") rescue "#{arg}")]
     end
-    result
   end
 
   # Retrieves the summary for each command method in the given Module
@@ -240,25 +168,13 @@ module Rubycom
   # @param [Module] base the module which invoked 'include Rubycom'
   # @return [String] the summary for each command method in the given Module
   def self.get_summary(base)
-    longest_name_length = self.get_longest_command_name(base).length
     self.get_top_level_commands(base).each_with_index.map { |sym, index|
-      separator = self.get_separator(sym, longest_name_length)
-      if index == 0
-        "Commands:\n" << self.get_command_summary(base, sym, separator)
-      else
-        self.get_command_summary(base, sym, separator)
-      end
+      "#{"Commands:\n" if index == 0}" << self.get_command_summary(base, sym, self.get_separator(sym, self.get_longest_command_name(base).length))
     }.reduce(:+) or "No Commands found for #{base}."
   end
 
   def self.get_separator(sym, spacer_length=0)
-    cmd_name = sym.to_s
-    sep_length = spacer_length - cmd_name.length
-    separator = ""
-    sep_length.times {
-      separator << " "
-    }
-    separator << "  -  "
+    [].unshift(" " * (spacer_length - sym.to_s.length)).join << "  -  "
   end
 
   # Retrieves the summary for the given command_name
@@ -273,24 +189,14 @@ module Rubycom
       desc = "Sub-Module-Command"
     else
       raise CLIError, "Invalid command for #{base}, #{command_name}" unless base.public_methods.include?(command_name.to_sym)
-      m = base.public_method(command_name.to_sym)
-      method_doc = self.get_doc(m)
-      desc = method_doc[:desc].join("\n")
+      desc = self.get_doc(base.public_method(command_name.to_sym))[:desc].join("\n") rescue nil
     end
     (desc.nil?||desc=='nil'||desc.length==0) ? "#{command_name}\n" : self.get_formatted_summary(command_name, desc, separator)
   end
 
   def self.get_formatted_summary(command_name, command_description, separator = '  -  ')
     width = 95
-    spacer = ""
-    command_name.to_s.split(//).each {
-      spacer << " "
-    }
-    sep_space = ""
-    separator.split(//).each {
-      sep_space << " "
-    }
-    prefix = "#{spacer}#{sep_space}"
+    prefix = command_name.to_s.split(//).map { " " }.join + separator.split(//).map { " " }.join
     line_width = width - prefix.length
     description_msg = command_description.gsub(/(.{1,#{line_width}})(?: +|$)\n?|(.{#{line_width}})/, "#{prefix}"+'\1\2'+"\n")
     "#{command_name}#{separator}#{description_msg.lstrip}"
@@ -329,7 +235,7 @@ module Rubycom
       <<-END.gsub(/^ {6}/, '')
       Usage: #{m.name} #{self.get_param_usage(m)}
       #{"Parameters:" unless m.parameters.empty?}
-          #{method_doc[:param].join("\n    ") unless method_doc[:param].nil?}
+      #{method_doc[:param].join("\n    ") unless method_doc[:param].nil?}
       Returns:
           #{method_doc[:return].join("\n    ") rescue 'void'}
       END
@@ -359,27 +265,21 @@ module Rubycom
   # @return [Hash] a Hash representing the given Method's parameters
   def self.get_param_definitions(method)
     raise CLIError, 'method must be an instance of the Method class' unless method.class == Method
-    source = method.source
-    method_name = method.name.to_s
-    source_lines = source.split("\n")
-    param_names = method.parameters.map { |param| param[1].to_s }
-    param_types = {}
-    method.parameters.each { |type, name| param_types[name] = type }
-    param_def_lines = {}
-    param_names.each { |name| param_def_lines[name] = source_lines.select { |line| line.include?(name) }.first }
-    param_definitions = {}
-    param_def_lines.each { |name, param_def_line|
-      param_candidates = param_def_line.gsub(/(def\s+self\.#{method_name}|def\s+#{method_name})/, '').lstrip.chomp.chomp(')').reverse.chomp('(').reverse
-      param_definitions[name.to_sym] = {}
-      param_definitions[name.to_sym][:def] = param_candidates.split(',').select { |candidate| candidate.include?(name) }.first
-      param_definitions[name.to_sym][:type] = param_types[name.to_sym]
-      if param_definitions[name.to_sym][:def].include?('=')
-        param_definitions[name.to_sym][:default] = param_definitions[name.to_sym][:def].split('=')[1..-1].join('=')
-      else
-        param_definitions[name.to_sym][:default] = :nil_rubycom_required_param
-      end
-    }
-    param_definitions
+    method.parameters.map { |param|
+      param[1].to_s
+    }.map { |param_name|
+      {param_name.to_sym => method.source.split("\n").select { |line| line.include?(param_name) }.first}
+    }.map { |param_hash|
+      param_def = param_hash.flatten[1].gsub(/(def\s+self\.#{method.name.to_s}|def\s+#{method.name.to_s})/, '').lstrip.chomp.chomp(')').reverse.chomp('(').reverse.split(',').map { |param_n| param_n.lstrip }.select { |candidate| candidate.include?(param_hash.flatten[0].to_s) }.first
+      Hash[
+          param_hash.flatten[0],
+          Hash[
+              :def, param_def,
+              :type, method.parameters.select { |arr| arr[1] == param_hash.flatten[0] }.flatten[0],
+              :default, (param_def.include?('=') ? YAML.load(param_def.split('=')[1..-1].join('=')) : :nil_rubycom_required_param)
+          ]
+      ]
+    }.reduce(&:merge) || {}
   end
 
   # Retrieves the given method's documentation from it's source code.
@@ -414,17 +314,13 @@ module Rubycom
   # @return [Hash] a Hash of Symbols representing the command methods in the given base and it's included modules (if all=true)
   def self.get_commands(base, all=true)
     return {} if base.nil? || !base.respond_to?(:singleton_methods) || !base.respond_to?(:included_modules)
-    excluded_commands = [:included, :extended]
-    excluded_modules = [:Rubycom]
     {
         base.name.to_sym => {
-            commands: base.singleton_methods(true).select { |sym| !excluded_commands.include?(sym) },
-            inclusions: base.included_modules.select { |mod| !excluded_modules.include?(mod.name.to_sym) }.map { |mod|
-              if all
-                self.get_commands(mod)
-              else
-                mod.name.to_sym
-              end
+            commands: base.singleton_methods(true).select { |sym| ![:included, :extended].include?(sym) },
+            inclusions: base.included_modules.select { |mod|
+              ![:Rubycom].include?(mod.name.to_sym)
+            }.map { |mod|
+              all ? self.get_commands(mod) : mod.name.to_sym
             }
         }
     }

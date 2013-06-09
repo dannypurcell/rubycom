@@ -113,19 +113,20 @@ class TestRubycom < Test::Unit::TestCase
       UtilTestModule <command> [args]
 
     Commands:
-      test_command                -  A basic test command
-      test_command_with_arg       -  A test_command with one arg
-      test_command_with_args      -  A test_command with two args
-      test_command_with_options   -  A test_command with an optional argument
-      test_command_all_options    -  A test_command with all optional arguments
-      test_command_options_arr    -  A test_command with an options array
-      test_command_with_return    -  A test_command with a return argument
-      test_command_arg_timestamp  -  A test_command with a Timestamp argument and an unnecessarily
-                                     long description which should overflow when
-                                     it tries to line up with other descriptions.
-      test_command_arg_false      -  A test_command with a Boolean argument
-      test_command_arg_arr        -  A test_command with an array argument
-      test_command_arg_hash       -  A test_command with an Hash argument
+    test_command                -  A basic test command
+    test_command_with_arg       -  A test_command with one arg
+    test_command_arg_named_arg  -  A test_command with an arg named arg
+    test_command_with_args      -  A test_command with two args
+    test_command_with_options   -  A test_command with an optional argument
+    test_command_all_options    -  A test_command with all optional arguments
+    test_command_options_arr    -  A test_command with an options array
+    test_command_with_return    -  A test_command with a return argument
+    test_command_arg_timestamp  -  A test_command with a Timestamp argument and an unnecessarily
+                                   long description which should overflow when
+                                   it tries to line up with other descriptions.
+    test_command_arg_false      -  A test_command with a Boolean argument
+    test_command_arg_arr        -  A test_command with an array argument
+    test_command_arg_hash       -  A test_command with an Hash argument
 
     END
     assert_equal(expected.gsub(/\n|\r|\s/, ''), result.gsub(/\n|\r|\s/, ''))
@@ -150,14 +151,15 @@ class TestRubycom < Test::Unit::TestCase
     Commands:
     test_command                -  A basic test command
     test_command_with_arg       -  A test_command with one arg
+    test_command_arg_named_arg  -  A test_command with an arg named arg
     test_command_with_args      -  A test_command with two args
     test_command_with_options   -  A test_command with an optional argument
     test_command_all_options    -  A test_command with all optional arguments
     test_command_options_arr    -  A test_command with an options array
     test_command_with_return    -  A test_command with a return argument
     test_command_arg_timestamp  -  A test_command with a Timestamp argument and an unnecessarily
-                                   long description which should overflow when it tries to line up
-                                   with other descriptions.
+                                   long description which should overflow when
+                                   it tries to line up with other descriptions.
     test_command_arg_false      -  A test_command with a Boolean argument
     test_command_arg_arr        -  A test_command with an array argument
     test_command_arg_hash       -  A test_command with an Hash argument
@@ -178,7 +180,7 @@ class TestRubycom < Test::Unit::TestCase
   end
 
   def test_get_top_level_commands
-    test_command_list = [:test_command, :test_command_with_arg, :test_command_with_args, :test_command_with_options,
+    test_command_list = [:test_command, :test_command_with_arg, :test_command_arg_named_arg, :test_command_with_args, :test_command_with_options,
                          :test_command_all_options, :test_command_options_arr, :test_command_with_return,
                          :test_command_arg_timestamp, :test_command_arg_false, :test_command_arg_arr,
                          :test_command_arg_hash]
@@ -219,21 +221,21 @@ class TestRubycom < Test::Unit::TestCase
   def test_parse_arg_string
     test_arg = "test_arg"
     result = Rubycom.parse_arg(test_arg)
-    expected = {arg: "test_arg"}
+    expected = {rubycom_non_opt_arg: "test_arg"}
     assert_equal(expected, result)
   end
 
   def test_parse_arg_fixnum
     test_arg = "1234512415435"
     result = Rubycom.parse_arg(test_arg)
-    expected = {arg: 1234512415435}
+    expected = {rubycom_non_opt_arg: 1234512415435}
     assert_equal(expected, result)
   end
 
   def test_parse_arg_float
     test_arg = "12345.67890"
     result = Rubycom.parse_arg(test_arg)
-    expected = {arg: 12345.67890}
+    expected = {rubycom_non_opt_arg: 12345.67890}
     assert_equal(expected, result)
   end
 
@@ -241,8 +243,8 @@ class TestRubycom < Test::Unit::TestCase
     time = Time.new
     test_arg = time.to_s
     result = Rubycom.parse_arg(test_arg)
-    expected = {arg: time}
-    assert_equal(expected[:arg].to_i, result[:arg].to_i)
+    expected = {rubycom_non_opt_arg: time}
+    assert_equal(expected[:rubycom_non_opt_arg].to_i, result[:rubycom_non_opt_arg].to_i)
   end
 
   def test_parse_arg_datetime
@@ -250,14 +252,14 @@ class TestRubycom < Test::Unit::TestCase
     date = Date.new(time.year, time.month, time.day)
     test_arg = date.to_s
     result = Rubycom.parse_arg(test_arg)
-    expected = {arg: date}
+    expected = {rubycom_non_opt_arg: date}
     assert_equal(expected, result)
   end
 
   def test_parse_arg_array
     test_arg = ["1", 2, "a", 'b']
     result = Rubycom.parse_arg(test_arg.to_s)
-    expected = {arg: test_arg}
+    expected = {rubycom_non_opt_arg: test_arg}
     assert_equal(expected, result)
   end
 
@@ -265,28 +267,91 @@ class TestRubycom < Test::Unit::TestCase
     time = Time.new.to_s
     test_arg = ":a: \"#{time}\""
     result = Rubycom.parse_arg(test_arg.to_s)
-    expected = {arg: {a: time}}
+    expected = {rubycom_non_opt_arg: {a: time}}
     assert_equal(expected, result)
   end
 
   def test_parse_arg_hash_group
     test_arg = ":a: [1,2]\n:b: 1\n:c: test\n:d: 1.0\n:e: \"2013-05-08 23:21:52 -0500\"\n"
     result = Rubycom.parse_arg(test_arg.to_s)
-    expected = {arg: {:a => [1, 2], :b => 1, :c => "test", :d => 1.0, :e => "2013-05-08 23:21:52 -0500"}}
+    expected = {rubycom_non_opt_arg: {:a => [1, 2], :b => 1, :c => "test", :d => 1.0, :e => "2013-05-08 23:21:52 -0500"}}
     assert_equal(expected, result)
   end
 
   def test_parse_arg_yaml
     test_arg = {:a => ["1", 2, "a", 'b'], :b => 1, :c => "test", :d => "#{Time.now.to_s}"}
     result = Rubycom.parse_arg(test_arg.to_yaml)
-    expected = {arg: test_arg}
+    expected = {rubycom_non_opt_arg: test_arg}
     assert_equal(expected, result)
   end
 
   def test_parse_arg_code
     test_arg = 'def self.test_code_method; raise "Fail - test_parse_arg_code";end'
     result = Rubycom.parse_arg(test_arg.to_s)
-    expected = {arg: 'def self.test_code_method; raise "Fail - test_parse_arg_code";end'}
+    expected = {rubycom_non_opt_arg: 'def self.test_code_method; raise "Fail - test_parse_arg_code";end'}
+    assert_equal(expected, result)
+  end
+
+  def test_parse_opt_string_eq
+    test_arg = "-test_arg=\"test\""
+    result = Rubycom.parse_arg(test_arg)
+    expected = {test_arg: "test"}
+    assert_equal(expected, result)
+  end
+
+  def test_parse_opt_string_sp
+    test_arg = "-test_arg \"test\""
+    result = Rubycom.parse_arg(test_arg)
+    expected = {test_arg: "test"}
+    assert_equal(expected, result)
+  end
+
+  def test_parse_opt_long_string_eq
+    test_arg = "--test_arg=\"test\""
+    result = Rubycom.parse_arg(test_arg)
+    expected = {test_arg: "test"}
+    assert_equal(expected, result)
+  end
+
+  def test_parse_opt_long_string_sp
+    test_arg = "--test_arg \"test\""
+    result = Rubycom.parse_arg(test_arg)
+    expected = {test_arg: "test"}
+    assert_equal(expected, result)
+  end
+
+  def test_get_param_definitions
+    test_method = UtilTestModule.public_method('test_command_with_args')
+    expected = {:test_arg=>{:def=>"test_arg", :type=>:req, :default=>:nil_rubycom_required_param}, :another_test_arg=>{:def=>"another_test_arg", :type=>:req, :default=>:nil_rubycom_required_param}}
+    result = Rubycom.get_param_definitions(test_method)
+    assert_equal(expected, result)
+  end
+
+  def test_get_param_definitions_no_args
+    test_method = UtilTestModule.public_method('test_command')
+    expected = {}
+    result = Rubycom.get_param_definitions(test_method)
+    assert_equal(expected, result)
+  end
+
+  def test_get_param_definitions_arr_param
+    test_method = UtilTestModule.public_method('test_command_options_arr')
+    expected = {:test_option=>{:def=>"test_option=\"test_option_default\"", :type=>:opt, :default=>"test_option_default"}, :test_options=>{:def=>"*test_options", :type=>:rest, :default=>:nil_rubycom_required_param}}
+    result = Rubycom.get_param_definitions(test_method)
+    assert_equal(expected, result)
+  end
+
+  def test_get_param_definitions_all_options
+    test_method = UtilTestModule.public_method('test_command_all_options')
+    expected = {:test_arg=>{:def=>"test_arg='test_arg_default'", :type=>:opt, :default=>"test_arg_default"}, :test_option=>{:def=>"test_option='test_option_default'", :type=>:opt, :default=>"test_option_default"}}
+    result = Rubycom.get_param_definitions(test_method)
+    assert_equal(expected, result)
+  end
+
+  def test_get_param_definitions_mixed
+    test_method = UtilTestModule.public_method('test_command_with_options')
+    expected = {:test_arg=>{:def=>"test_arg", :type=>:req, :default=>:nil_rubycom_required_param}, :test_option=>{:def=>"test_option='option_default'", :type=>:opt, :default=>"option_default"}}
+    result = Rubycom.get_param_definitions(test_method)
     assert_equal(expected, result)
   end
 
@@ -334,6 +399,7 @@ class TestRubycom < Test::Unit::TestCase
     Commands:
     test_command                -  A basic test command
     test_command_with_arg       -  A test_command with one arg
+    test_command_arg_named_arg  -  A test_command with an arg named arg
     test_command_with_args      -  A test_command with two args
     test_command_with_options   -  A test_command with an optional argument
     test_command_all_options    -  A test_command with all optional arguments

@@ -19,6 +19,13 @@ module UtilTestModule
     "test_arg=#{test_arg}"
   end
 
+  # A test_command with an arg named arg
+  #
+  # @param [String] arg a test argument whose parameter name is arg
+  def self.test_command_arg_named_arg(arg)
+    "arg=#{arg}"
+  end
+
   # A test_command with two args
   # @param [String] test_arg a test argument
   # @param [String] another_test_arg another test argument
