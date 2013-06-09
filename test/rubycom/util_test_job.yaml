@@ -5,10 +5,17 @@ env:
   working_dir: ./test/rubycom
 steps:
   1:
+    desc: Run test_composite_command with environment variable
     cmd: ruby env[working_dir]/util_test_composite.rb test_composite_command env[test_msg]
   2:
+    Var: Run UtilTestModule/test_command_options_arr with environment variable
     cmd: ruby env[working_dir]/util_test_composite.rb UtilTestModule test_command_options_arr '["Hello World 1", world2]'
   3:
+    Cntxt: Run test_command_with_args with environment variable
     cmd: ruby env[working_dir]/util_test_module.rb test_command_with_args env[test_msg] env[test_arg]
   4:
+    Cmd: Run ls for arbitrary command support
     cmd: ls
+  5:
+    Arbitrary_Context: Run ls with environment variable
+    cmd: ls env[working_dir]

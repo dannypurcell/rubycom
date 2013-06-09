@@ -54,13 +54,22 @@ module Rubycom
           if arguments.delete('-test') || arguments.delete('--test')
             puts "[Test Job #{arguments[0]}]"
             job_hash['steps'].each { |step, step_hash|
-              puts "[Step #{step}/#{job_hash.length}] #{step_hash['cmd']}"
+              step = "[Step: #{step}/#{job_hash['steps'].length}]"
+              context = step_hash.select{|key| key!="cmd"}.map{|key,val| "[#{key}: #{val}]"}.join(' ')
+              env = job_hash['env'] || {}
+              env.map { |key, val| step_hash['cmd'].gsub!("env[#{key}]", "#{((val.class == String)&&(val.match(/\w+/))) ? "\"#{val}\"" : val}") }
+              cmd = "[cmd: #{step_hash['cmd']}]"
+              puts "#{[step,context,cmd].join(' ')}"
             }
           else
             puts "[Job #{arguments[0]}]"
             job_hash['steps'].each { |step, step_hash|
-              puts "[Step #{step}/#{job_hash.length}] #{step_hash['cmd']}"
-              job_hash['env'].map { |key, val| step_hash['cmd'].gsub!("env[#{key}]", "#{((val.class == String)&&(val.match(/\w+/))) ? "\"#{val}\"" : val}") }
+              step = "[Step: #{step}/#{job_hash['steps'].length}]"
+              context = step_hash.select{|key| key!="cmd"}.map{|key,val| "[#{key}: #{val}]"}.join(' ')
+              env = job_hash['env'] || {}
+              env.map { |key, val| step_hash['cmd'].gsub!("env[#{key}]", "#{((val.class == String)&&(val.match(/\w+/))) ? "\"#{val}\"" : val}") }
+              cmd = "[cmd: #{step_hash['cmd']}]"
+              puts "#{[step,context,cmd].join(' ')}"
               system(step_hash['cmd'])
             }
           end
@@ -232,17 +241,17 @@ module Rubycom
       m = base.public_method(command_name.to_sym)
       method_doc = self.get_doc(m)
 
-      <<-END.gsub(/^ {6}/, '')
-      Usage: #{m.name} #{self.get_param_usage(m)}
-      #{"Parameters:" unless m.parameters.empty?}
-      #{method_doc[:param].join("\n    ") unless method_doc[:param].nil?}
-      Returns:
-          #{method_doc[:return].join("\n    ") rescue 'void'}
-      END
+      msg = "Usage: #{m.name} #{self.get_param_usage(m)}\n"
+      msg << "#{"Parameters:"}\n" unless m.parameters.empty?
+      msg << "#{method_doc[:param].join("\n    ")}\n" unless method_doc[:param].nil?
+      msg << "#{"Returns:"}\n"  unless method_doc[:return].nil?
+      msg << "#{method_doc[:return].join("\n    ")}\n" unless method_doc[:return].nil?
+      msg
     end
   end
 
   def self.get_param_usage(method)
+    return "" if method.parameters.nil? || method.parameters.empty?
     method.parameters.map { |type, param| {type => param}
     }.group_by { |entry| entry.keys.first
     }.map { |key, val| Hash[key, val.map { |param| param.values.first }]
@@ -286,8 +295,8 @@ module Rubycom
   #
   # @param [Method] method the Method who's documentation should be retrieved
   # @return [Hash] a Hash representing the given Method's documentation, documentation parsed as follows:
-  #                :desc = the first general method comment, :params = each @param comment, :return  = each @return comment,
-  #                :extended = all other general method comments and unrecognized annotations
+  #                :desc = the first general method comment lines,
+  #                :word = each @word comment (i.e.- a line starting with @param will be saved as :param => ["line"])
   def self.get_doc(method)
     method.comment.split("\n").map { |line|
       line.gsub(/#\s*/, '') }.group_by { |doc|
