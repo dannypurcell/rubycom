@@ -1,8 +1,7 @@
-require "bundler/gem_tasks"
-require 'rake/testtask'
+require "#{File.expand_path(File.dirname(__FILE__))}/lib/rubycom/version.rb"
 require 'yard'
 
-task :default => [:clean, :test, :yard, :package]
+task :default => [:package]
 
 task :clean do
   FileUtils.rm_rf('./doc')
@@ -30,9 +29,9 @@ task :package => [:clean, :test, :yard] do
 end
 
 task :install => :package do
-  system "gem install ./rubycom-#{Rubycom::VERSION}"
+  system("gem install rubycom-#{Rubycom::VERSION}")
 end
 
 task :release => :package do
-  system "gem push ./rubycom-#{Rubycom::VERSION}"
+  system("gem push rubycom-#{Rubycom::VERSION}")
 end
