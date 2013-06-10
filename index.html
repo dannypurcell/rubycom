@@ -62,6 +62,121 @@ by simply including Rubycom at the bottom.</p>
 <li>Command consoles can be built up by including other modules before including Rubycom.</li>
 <li>Included modules become commands, their public singleton methods become sub-commands.</li>
 </ul><h2>
+<a name="usage" class="anchor" href="#usage"><span class="octicon octicon-link"></span></a>Usage</h2>
+
+<p>Write your module of methods, document them as you normally would. <code>include Rubycom</code> at the bottom.
+Optionally <code>#!/usr/bin/env ruby</code> at the top.</p>
+
+<p>Now any singleton methods <code>def self.method_name</code> will be available to call from the terminal.</p>
+
+<p>Calling <code>ruby ./path/to/module.rb &lt;command_name&gt;</code> will automatically discover and run your <code>&lt;command_name&gt;</code> singleton method.
+If no method is found by the given name, a usage print out will be given including a summary of each command available
+and it's description from the corresponding method's comments.</p>
+
+<p>Calling a valid command with incorrect arguments will produce a usage print out for the matched method.
+Rubycom will include as much documentation on the command line as you provide in your method comments. Currently Rubycom
+only handles <a href="https://github.com/param" class="user-mention">@param</a> and <a href="https://github.com/return" class="user-mention">@return</a> annotation style comments for discovering the method comments regarding params and return values.
+All other commentary will be included as part of the command description. In the absence of <a href="https://github.com/param" class="user-mention">@param</a> or <a href="https://github.com/return" class="user-mention">@return</a> comments,
+Rubycom will also leave off the corresponding Param: and Return: markers in the usage output.</p>
+
+<h5>
+<a name="special-commands" class="anchor" href="#special-commands"><span class="octicon octicon-link"></span></a>Special commands</h5>
+
+<table>
+<tr>
+<th align="left">Command</th>
+<th align="left">Description</th>
+<th align="left">Options</th>
+</tr>
+<tr>
+<td align="left"><code>ruby ./path/to/module.rb help [command_name]</code></td>
+<td align="left">Will print out usage for the module or optionally the specified command.</td>
+<td align="left"></td>
+</tr>
+<tr>
+<td align="left"><code>ruby ./path/to/module.rb job &lt;/path/to/job.yaml&gt;</code></td>
+<td align="left">Runs the specified job file. See: "Jobs" below.</td>
+<td align="left">
+<code>--test</code> Prints the steps and context without running the commands.</td>
+</tr>
+</table><h3>
+<a name="arguments" class="anchor" href="#arguments"><span class="octicon octicon-link"></span></a>Arguments</h3>
+
+<ul>
+<li>Arguments are automatically parsed from the command line using Ruby's core Yaml module.</li>
+<li>Arguments will be passed to your method in order of their appearance on the command line.</li>
+<li>If you specify a default value for a parameter in your method, then Rubycom will look for a named argument matching
+the parameter's name.</li>
+<li>Users may call out option parameters in any order using <code>--&lt;param_name&gt;=&lt;value&gt;</code> or <code>--&lt;param_name&gt; &lt;value&gt;</code>
+
+<ul>
+<li>Currently Rubycom does not yet support sort names for optional parameters so specifying <code>-&lt;param_name&gt;</code>
+is equivalent to <code>--&lt;param_name&gt;</code>
+</li>
+</ul>
+</li>
+<li>In the absence of a named option, any optional parameters still unfilled will be filled by unnamed arguments in
+order of appearance.</li>
+<li>Optional parameters which do not get overridden either by a named option specification or an available unnamed
+argument will be filled by their default as usual.</li>
+<li>If a rest parameter <code>*param_name</code> is defined in the method being called, any remaining arguments will be passed to the
+rest parameter after the required and optional parameters are filled.</li>
+</ul><h3>
+<a name="jobs" class="anchor" href="#jobs"><span class="octicon octicon-link"></span></a>Jobs</h3>
+
+<p>Jobs are a higher order orchestration mechanism for command line utilities. Rubycom provides a simple job runner to every
+command line utility. by calling <code>ruby ./path/to/module.rb job &lt;/path/to/job.yaml&gt;</code> with a valid job yaml. Rubycom will
+run your job.</p>
+
+<ul>
+<li>A valid job file is a Yaml file which specifies a <code>steps</code> node and any number of valid numbered child nodes</li>
+<li>Optionally, an <code>env</code> node may specified.
+
+<ul>
+<li>If specified, <code>env</code> should include child nodes which are <code>key: value</code> pairs Ex: <code>working_dir: ./test/rubycom</code>
+</li>
+<li>If an <code>env</code> is specified, values may be inserted into commands in the <code>steps</code> node as such: <code>env['key']</code>
+
+<ul>
+<li>Ex: <code>ruby env[working_dir]/util_test_composite.rb test_composite_command env[test_msg]</code>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>A valid <code>steps</code> child node is a numbered node <code>1:</code> with a <code>cmd:</code> child node and optionally several context <code>desc:</code>
+child nodes.</li>
+<li>A <code>cmd:</code> node should specify the command string to run. Ex: <code>cmd: ls ./test_folder</code>
+</li>
+<li>A context node should specify some text to be placed with the node's key in a formatted
+logging context Ex: <code>desc: Run test_composite_command</code>
+</li>
+</ul><p>Below is an example job file which demonstrates the format Rubycom supports.</p>
+
+<pre><code>---
+env:
+  test_msg: Hello World
+  test_arg: 123
+  working_dir: ./test/rubycom
+steps:
+  1:
+    desc: Run test_composite_command with environment variable
+    cmd: ruby env[working_dir]/util_test_composite.rb test_composite_command env[test_msg]
+  2:
+    Var: Run UtilTestModule/test_command_options_arr with environment variable
+    cmd: ruby env[working_dir]/util_test_composite.rb UtilTestModule test_command_options_arr '["Hello World", world2]'
+  3:
+    Context: Run test_command_with_args with environment variable
+    cmd: ruby env[working_dir]/util_test_module.rb test_command_with_args env[test_msg] env[test_arg]
+  4:
+    Cmd: Run ls for arbitrary command support
+    cmd: ls
+  5:
+    Arbitrary_Context: Run ls with environment variable
+    cmd: ls env[working_dir]
+</code></pre>
+
+<h2>
 <a name="raison-detre" class="anchor" href="#raison-detre"><span class="octicon octicon-link"></span></a>Raison d'etre</h2>
 
 <ul>
@@ -95,14 +210,12 @@ If a set of functions needs to be accessible from the terminal, just <code>inclu
 <a name="coming-soon" class="anchor" href="#coming-soon"><span class="octicon octicon-link"></span></a>Coming Soon</h2>
 
 <ul>
-<li>Run Pre-configured sets of commands from a yaml file by calling  job </li>
-<li>Job help/usage output will include descriptions from command for each step</li>
-<li>Build a job yaml by running each command in sequence with a special option --job_add </li>
+<li>Build a job yaml by running each command in sequence with a special option --job_add [:step_number]</li>
 <li>Edit job files from the command line using special options.
 
 <ul>
-<li>--job_update </li>
-<li>--job_rm </li>
+<li>--job_update [:step_number]</li>
+<li>--job_remove [:step_number]</li>
 </ul>
 </li>
 </ul>
