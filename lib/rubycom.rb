@@ -50,6 +50,7 @@ module Rubycom
         begin
           raise CLIError, 'No job specified' if arguments[0].nil? || arguments[0].empty?
           job_hash = YAML.load_file(arguments[0])
+          job_hash = {} if job_hash.nil?
           STDOUT.sync = true
           if arguments.delete('-test') || arguments.delete('--test')
             puts "[Test Job #{arguments[0]}]"
@@ -96,6 +97,7 @@ module Rubycom
   # @param [String] command the name of the Method to call
   # @param [Array] arguments a String Array representing the arguments for the given command
   def self.run_command(base, command, arguments=[])
+    arguments = [] if arguments.nil?
     raise CLIError, 'No command specified.' if command.nil? || command.length == 0
     begin
       raise CLIError, "Invalid Command: #{command}" unless self.get_top_level_commands(base).include? command.to_sym
@@ -195,6 +197,7 @@ module Rubycom
     raise CLIError, "Can not get usage for #{command_name} with base: #{base||"nil"}" if base.nil? || !base.respond_to?(:included_modules)
     return 'No command specified.' if command_name.nil? || command_name.length == 0
     if base.included_modules.map { |mod| mod.name.to_sym }.include?(command_name.to_sym)
+      begin
       mod_const = Kernel.const_get(command_name.to_sym)
       desc = File.read(mod_const.public_method(mod_const.singleton_methods().first).source_location.first).split(//).reduce(""){|str,c|
         unless str.gsub("\n",'').gsub(/\s+/,'').include?("module#{mod_const}")
@@ -202,9 +205,12 @@ module Rubycom
           end
           str
       }.split("\n").select{|line| line.strip.match(/^#/)}.map{|line| line.strip.gsub(/^#+/,'')}.join("\n")
+      rescue
+        desc = ""
+      end
     else
       raise CLIError, "Invalid command for #{base}, #{command_name}" unless base.public_methods.include?(command_name.to_sym)
-      desc = self.get_doc(base.public_method(command_name.to_sym))[:desc].join("\n") rescue nil
+      desc = self.get_doc(base.public_method(command_name.to_sym))[:desc].join("\n") rescue ""
     end
     (desc.nil?||desc=='nil'||desc.length==0) ? "#{command_name}\n" : self.get_formatted_summary(command_name, desc, separator)
   end
@@ -245,7 +251,7 @@ module Rubycom
     else
       raise CLIError, "Invalid command for #{base}, #{command_name}" unless base.public_methods.include?(command_name.to_sym)
       m = base.public_method(command_name.to_sym)
-      method_doc = self.get_doc(m)
+      method_doc = self.get_doc(m) || {}
 
       msg = "Usage: #{m.name} #{self.get_param_usage(m)}\n"
       msg << "#{"Parameters:"}\n" unless m.parameters.empty?

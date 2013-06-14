@@ -12,6 +12,10 @@ module UtilTestModule
     puts 'command test'
   end
 
+  def self.test_command_no_docs
+    puts 'command test'
+  end
+
   # A test_command with one arg
   #
   # @param [String] test_arg a test argument
