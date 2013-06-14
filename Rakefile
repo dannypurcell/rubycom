@@ -33,5 +33,5 @@ task :install => :package do
 end
 
 task :release => :package do
-  system("gem push rubycom-#{Rubycom::VERSION}")
+  system("gem push ./rubycom-#{Rubycom::VERSION}.gem")
 end
