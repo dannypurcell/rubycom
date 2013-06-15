@@ -184,6 +184,11 @@ module Rubycom
     }.reduce(:+) or "No Commands found for #{base}."
   end
 
+  # Creates a separator with the appropriate spacing to line up a command/description pair in a command list
+  #
+  # @param [Symbol] sym
+  # @param [Integer] spacer_length
+  # @return [String] a spaced separator String for use in a command/description list
   def self.get_separator(sym, spacer_length=0)
     [].unshift(" " * (spacer_length - sym.to_s.length)).join << "  -  "
   end
@@ -215,6 +220,11 @@ module Rubycom
     (desc.nil?||desc=='nil'||desc.length==0) ? "#{command_name}\n" : self.get_formatted_summary(command_name, desc, separator)
   end
 
+  # Arranges the given command_name and command_description with the separator in a standard format
+  #
+  # @param [String] command_name the command format
+  # @param [String] command_description the description for the given command
+  # @param [String] separator optional separator to use
   def self.get_formatted_summary(command_name, command_description, separator = '  -  ')
     width = 95
     prefix = command_name.to_s.split(//).map { " " }.join + separator.split(//).map { " " }.join
@@ -262,6 +272,9 @@ module Rubycom
     end
   end
 
+  # Discovers the given Method's parameters and uses them to build a formatted usage string
+  #
+  # @param [Method] method the Method object to generate usage for
   def self.get_param_usage(method)
     return "" if method.parameters.nil? || method.parameters.empty?
     method.parameters.map { |type, param| {type => param}
@@ -303,7 +316,7 @@ module Rubycom
     }.reduce(&:merge) || {}
   end
 
-  # Retrieves the given method's documentation from it's source code.
+  # Retrieves the given method's documentation from it's source code
   #
   # @param [Method] method the Method who's documentation should be retrieved
   # @return [Hash] a Hash representing the given Method's documentation, documentation parsed as follows:
@@ -322,16 +335,21 @@ module Rubycom
     }.reduce(&:merge)
   end
 
+  # Looks up the commands which will be available on the given base Module and returns the longest command name
+  # Used in arranging the command list format
+  #
+  # @param [Module] base the base Module to look up
+  # @return [String] the longest command name which will show in a list of commands for the given base Module
   def self.get_longest_command_name(base)
     return '' if base.nil?
     self.get_commands(base, false).map { |_, mod_hash|
       mod_hash[:commands] + mod_hash[:inclusions].flatten }.flatten.max_by(&:size) or ''
   end
 
-  # Retrieves the singleton methods in the given base
+  # Retrieves the singleton methods in the given base and included Modules
   #
   # @param [Module] base the module which invoked 'include Rubycom'
-  # @param [Boolean] all if true recursively search for included modules' commands, if false return only top level commands.
+  # @param [Boolean] all if true recursively search for included modules' commands, if false return only top level commands
   # @return [Hash] a Hash of Symbols representing the command methods in the given base and it's included modules (if all=true)
   def self.get_commands(base, all=true)
     return {} if base.nil? || !base.respond_to?(:singleton_methods) || !base.respond_to?(:included_modules)
@@ -347,6 +365,10 @@ module Rubycom
     }
   end
 
+  # Discovers the commands specified in the given base without considering the commands contained in sub-modules
+  #
+  # @param [Module] base the base Module to search
+  # @return [Array] a list of command name symbols which are defined in the given Module
   def self.get_top_level_commands(base)
     return {} if base.nil? || !base.respond_to?(:singleton_methods) || !base.respond_to?(:included_modules)
     excluded_commands = [:included, :extended]
@@ -355,6 +377,10 @@ module Rubycom
         base.included_modules.select { |mod| !excluded_modules.include?(mod.name.to_sym) }.map { |mod| mod.name.to_sym }.flatten
   end
 
+  # Discovers the commands specified in the given base and included Modules
+  #
+  # @param [Module] base the base Module to search
+  # @return [Hash] a set of command name symbols mapped to containing Modules
   def self.index_commands(base)
     excluded_commands = [:included, :extended]
     excluded_modules = [:Rubycom]
