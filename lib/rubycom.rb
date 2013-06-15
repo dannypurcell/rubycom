@@ -50,6 +50,7 @@ module Rubycom
         begin
           raise CLIError, 'No job specified' if arguments[0].nil? || arguments[0].empty?
           job_hash = YAML.load_file(arguments[0])
+          job_hash = {} if job_hash.nil?
           STDOUT.sync = true
           if arguments.delete('-test') || arguments.delete('--test')
             puts "[Test Job #{arguments[0]}]"
@@ -96,6 +97,7 @@ module Rubycom
   # @param [String] command the name of the Method to call
   # @param [Array] arguments a String Array representing the arguments for the given command
   def self.run_command(base, command, arguments=[])
+    arguments = [] if arguments.nil?
     raise CLIError, 'No command specified.' if command.nil? || command.length == 0
     begin
       raise CLIError, "Invalid Command: #{command}" unless self.get_top_level_commands(base).include? command.to_sym
@@ -208,7 +210,7 @@ module Rubycom
       end
     else
       raise CLIError, "Invalid command for #{base}, #{command_name}" unless base.public_methods.include?(command_name.to_sym)
-      desc = self.get_doc(base.public_method(command_name.to_sym))[:desc].join("\n")
+      desc = self.get_doc(base.public_method(command_name.to_sym))[:desc].join("\n") rescue ""
     end
     (desc.nil?||desc=='nil'||desc.length==0) ? "#{command_name}\n" : self.get_formatted_summary(command_name, desc, separator)
   end

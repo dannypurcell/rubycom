@@ -114,6 +114,7 @@ class TestRubycom < Test::Unit::TestCase
 
     Commands:
     test_command                -  A basic test command
+    test_command_no_docs
     test_command_with_arg       -  A test_command with one arg
     test_command_arg_named_arg  -  A test_command with an arg named arg
     test_command_with_args      -  A test_command with two args
@@ -150,6 +151,7 @@ class TestRubycom < Test::Unit::TestCase
     expected = <<-END.gsub(/^ {4}/, '')
     Commands:
     test_command                -  A basic test command
+    test_command_no_docs
     test_command_with_arg       -  A test_command with one arg
     test_command_arg_named_arg  -  A test_command with an arg named arg
     test_command_with_args      -  A test_command with two args
@@ -180,7 +182,7 @@ class TestRubycom < Test::Unit::TestCase
   end
 
   def test_get_top_level_commands
-    test_command_list = [:test_command, :test_command_with_arg, :test_command_arg_named_arg, :test_command_with_args, :test_command_with_options,
+    test_command_list = [:test_command, :test_command_no_docs, :test_command_with_arg, :test_command_arg_named_arg, :test_command_with_args, :test_command_with_options,
                          :test_command_all_options, :test_command_options_arr, :test_command_with_return,
                          :test_command_arg_timestamp, :test_command_arg_false, :test_command_arg_arr,
                          :test_command_arg_hash]
@@ -398,6 +400,7 @@ class TestRubycom < Test::Unit::TestCase
 
     Commands:
     test_command                -  A basic test command
+    test_command_no_docs
     test_command_with_arg       -  A test_command with one arg
     test_command_arg_named_arg  -  A test_command with an arg named arg
     test_command_with_args      -  A test_command with two args

@@ -29,9 +29,9 @@ task :package => [:clean, :test, :yard] do
 end
 
 task :install => :package do
-  system("gem install rubycom-#{Rubycom::VERSION}")
+  system("gem install #{File.expand_path(File.dirname(__FILE__))}/rubycom-#{Rubycom::VERSION}.gem")
 end
 
 task :release => :package do
-  system("gem push ./rubycom-#{Rubycom::VERSION}.gem")
+  system("gem push #{File.expand_path(File.dirname(__FILE__))}/rubycom-#{Rubycom::VERSION}.gem")
 end
