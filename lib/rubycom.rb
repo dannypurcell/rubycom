@@ -108,7 +108,13 @@ module Rubycom
         raise CLIError, "No public method found for symbol: #{command.to_sym}" if method.nil?
         param_defs = self.get_param_definitions(method)
         args = self.parse_arguments(param_defs, arguments)
-        (arguments.nil? || arguments.empty?) ? method.call : method.call(*method.parameters.map { |arr| args[arr[1]]}.flatten)
+        flatten = false
+        params = method.parameters.map { |arr| flatten = true if arr[0]==:rest; args[arr[1]]}
+        if flatten
+          rest_arr = params.delete_at(-1)
+          rest_arr.each{|arg| params << arg}
+        end
+        (arguments.nil? || arguments.empty?) ? method.call : method.call(*params)
       end
     rescue CLIError => e
       $stderr.puts e
@@ -128,17 +134,18 @@ module Rubycom
   def self.parse_arguments(parameters={}, arguments=[])
     raise CLIError, 'parameters may not be nil' if parameters.nil?
     raise CLIError, 'arguments may not be nil' if arguments.nil?
-    types = parameters.values.group_by { |hsh| hsh[:type] }.map { |type, defs_arr| Hash[type, defs_arr.length] }.reduce(&:merge) || {}
-    raise CLIError, "Wrong number of arguments. Expected at least #{types[:req]}, received #{arguments.length}" if arguments.length < (types[:req]||0)
-    raise CLIError, "Wrong number of arguments. Expected at most #{(types[:req]||0) + (types[:opt]||0)}, received #{arguments.length}" if types[:rest].nil? && (arguments.length > ((types[:req]||0) + (types[:opt]||0)))
-
     sorted_args = arguments.map { |arg|
       Rubycom.parse_arg(arg)
     }.group_by { |hsh|
       hsh.keys.first
     }.map { |key, arr|
-      (key == :rubycom_non_opt_arg) ? Hash[key, arr.map { |hsh| hsh.values }.flatten] : Hash[key, arr.map { |hsh| hsh.values.first }.reduce(&:merge)]
+      (key == :rubycom_non_opt_arg) ? Hash[key, arr.map { |hsh| hsh.values }.flatten(1)] : Hash[key, arr.map { |hsh| hsh.values.first }.reduce(&:merge)]
     }.reduce(&:merge) || {}
+
+    sorted_arg_count = sorted_args.map{|key,val| val}.flatten(1).length
+    types = parameters.values.group_by { |hsh| hsh[:type] }.map { |type, defs_arr| Hash[type, defs_arr.length] }.reduce(&:merge) || {}
+    raise CLIError, "Wrong number of arguments. Expected at least #{types[:req]}, received #{sorted_arg_count}" if sorted_arg_count < (types[:req]||0)
+    raise CLIError, "Wrong number of arguments. Expected at most #{(types[:req]||0) + (types[:opt]||0)}, received #{sorted_arg_count}" if types[:rest].nil? && (sorted_arg_count > ((types[:req]||0) + (types[:opt]||0)))
 
     parameters.map { |param_sym, def_hash|
       if def_hash[:type] == :req
@@ -170,7 +177,12 @@ module Rubycom
       }
       Hash[k, v]
     else
-      Hash[:rubycom_non_opt_arg, (YAML.load("#{arg}") rescue "#{arg}")]
+      begin
+        parsed_arg = YAML.load("#{arg}")
+      rescue Exception
+        parsed_arg = "#{arg}"
+      end
+      Hash[:rubycom_non_opt_arg, parsed_arg]
     end
   end
 

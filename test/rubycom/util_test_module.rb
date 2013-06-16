@@ -103,5 +103,10 @@ module UtilTestModule
     test_hash
   end
 
+  # A test_command with several mixed options
+  def self.test_command_mixed_options(test_arg, test_arr=[], test_opt='test_opt_arg', test_hsh={}, *test_rest)
+    "test_arg=#{test_arg} test_arr=#{test_arr} test_opt=#{test_opt} test_hsh=#{test_hsh} test_rest=#{test_rest}"
+  end
+
   include Rubycom
 end
