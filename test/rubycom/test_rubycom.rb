@@ -708,8 +708,8 @@ class TestRubycom < Test::Unit::TestCase
   def test_full_run_mixed_args
     mod = "util_test_module.rb"
     command = "test_command_mixed_options"
-    args = "testing_arg \"[test1, test2]\" -test_opt='testing_option' \"{a: 'test_hsh_arg'}\" some other args"
-    expected = 'test_arg=testing_arg test_arr=["test1", "test2"] test_opt=testing_option test_hsh={"a"=>"test_hsh_arg"} test_rest=["some", "other", "args"]'+"\n"
+    args = "testing_arg \"[test1, test2]\" -test_opt='testing_option' \"{a: 'test_hsh_arg'}\" -test_bool=true some other args"
+    expected = 'test_arg=testing_arg test_arr=["test1", "test2"] test_opt=testing_option test_hsh={"a"=>"test_hsh_arg"} test_bool=true test_rest=["some", "other", "args"]'+"\n"
     result = %x(ruby #{File.expand_path(File.dirname(__FILE__))}/#{mod} #{command} #{args})
     assert_equal(expected, result)
   end
@@ -718,7 +718,7 @@ class TestRubycom < Test::Unit::TestCase
     mod = "util_test_module.rb"
     command = "test_command_mixed_options"
     args = "testing_arg [test1,test2] -test_opt='testing_option' \"{a: 'test_hsh_arg'}\" some other args"
-    expected = 'test_arg=testing_arg test_arr=["test1", "test2"] test_opt=testing_option test_hsh={"a"=>"test_hsh_arg"} test_rest=["some", "other", "args"]'+"\n"
+    expected = 'test_arg=testing_arg test_arr=["test1", "test2"] test_opt=testing_option test_hsh={"a"=>"test_hsh_arg"} test_bool=some test_rest=["other", "args"]'+"\n"
     result = %x(ruby #{File.expand_path(File.dirname(__FILE__))}/#{mod} #{command} #{args})
     assert_equal(expected, result)
   end
@@ -726,8 +726,8 @@ class TestRubycom < Test::Unit::TestCase
   def test_full_run_mixed_args_quoted_solid_arr
     mod = "util_test_module.rb"
     command = "test_command_mixed_options"
-    args = 'testing_arg "[test1,test2]" -test_opt="testing_option" "{a: "test_hsh_arg"}" some other args'
-    expected = 'test_arg=testing_arg test_arr=["test1", "test2"] test_opt=testing_option test_hsh={"a"=>"test_hsh_arg"} test_rest=["some", "other", "args"]'+"\n"
+    args = 'testing_arg "[test1,test2]" -test_opt="testing_option" "{a: "test_hsh_arg"}" -test_bool=false some other args'
+    expected = 'test_arg=testing_arg test_arr=["test1", "test2"] test_opt=testing_option test_hsh={"a"=>"test_hsh_arg"} test_bool=false test_rest=["some", "other", "args"]'+"\n"
     result = %x(ruby #{File.expand_path(File.dirname(__FILE__))}/#{mod} #{command} #{args})
     assert_equal(expected, result)
   end
@@ -735,8 +735,8 @@ class TestRubycom < Test::Unit::TestCase
   def test_full_run_mixed_args_odd_sp
     mod = "util_test_module.rb"
     command = "test_command_mixed_options"
-    args = 'testing_arg "[ test1 ,  test2 ]" -test_opt="testing_option" "{ a:    "test_hsh_arg" }" some other args'
-    expected = 'test_arg=testing_arg test_arr=["test1", "test2"] test_opt=testing_option test_hsh={"a"=>"test_hsh_arg"} test_rest=["some", "other", "args"]'+"\n"
+    args = 'testing_arg "[ test1 ,  test2 ]" -test_opt="testing_option" "{ a:    "test_hsh_arg" }" -test_bool=false some other args'
+    expected = 'test_arg=testing_arg test_arr=["test1", "test2"] test_opt=testing_option test_hsh={"a"=>"test_hsh_arg"} test_bool=false test_rest=["some", "other", "args"]'+"\n"
     result = %x(ruby #{File.expand_path(File.dirname(__FILE__))}/#{mod} #{command} #{args})
     assert_equal(expected, result)
   end
@@ -744,8 +744,17 @@ class TestRubycom < Test::Unit::TestCase
   def test_full_run_mixed_args_hash_rocket
     mod = "util_test_module.rb"
     command = "test_command_mixed_options"
-    args = 'testing_arg "[ test1 ,  test2 ]" -test_opt="testing_option" "{ :a =>    "test_hsh_arg" }" some other args'
-    expected = 'test_arg=testing_arg test_arr=["test1", "test2"] test_opt=testing_option test_hsh={ :a =>    test_hsh_arg } test_rest=["some", "other", "args"]'+"\n"
+    args = 'testing_arg "[ test1 ,  test2 ]" -test_opt="testing_option" "{ :a =>    "test_hsh_arg" }" false some other args'
+    expected = 'test_arg=testing_arg test_arr=["test1", "test2"] test_opt=testing_option test_hsh={ :a =>    test_hsh_arg } test_bool=false test_rest=["some", "other", "args"]'+"\n"
+    result = %x(ruby #{File.expand_path(File.dirname(__FILE__))}/#{mod} #{command} #{args})
+    assert_equal(expected, result)
+  end
+
+  def test_full_run_mixed_args_no_rest
+    mod = "util_test_module.rb"
+    command = "test_command_mixed_options"
+    args = "testing_arg \"[test1, test2]\" -test_opt='testing_option' \"{a: 'test_hsh_arg'}\""
+    expected = 'test_arg=testing_arg test_arr=["test1", "test2"] test_opt=testing_option test_hsh={"a"=>"test_hsh_arg"} test_bool=true test_rest=[]'+"\n"
     result = %x(ruby #{File.expand_path(File.dirname(__FILE__))}/#{mod} #{command} #{args})
     assert_equal(expected, result)
   end

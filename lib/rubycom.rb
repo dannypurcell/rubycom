@@ -152,9 +152,14 @@ module Rubycom
         raise CLIError, "No argument available for #{param_sym}" if sorted_args[:rubycom_non_opt_arg].nil? || sorted_args[:rubycom_non_opt_arg].length == 0
         Hash[param_sym, sorted_args[:rubycom_non_opt_arg].shift]
       elsif def_hash[:type] == :opt
-        Hash[param_sym, ((sorted_args[param_sym]) ? sorted_args[param_sym] : ((sorted_args[:rubycom_non_opt_arg].shift || parameters[param_sym][:default]) rescue parameters[param_sym][:default]))]
+        if sorted_args[param_sym].nil?
+          arg = (sorted_args[:rubycom_non_opt_arg].nil? || sorted_args[:rubycom_non_opt_arg].empty?) ? parameters[param_sym][:default] : sorted_args[:rubycom_non_opt_arg].shift
+        else
+          arg = sorted_args[param_sym]
+        end
+        Hash[param_sym, arg]
       elsif def_hash[:type] == :rest
-        ret = Hash[param_sym, ((sorted_args[param_sym]) ? sorted_args[param_sym] : sorted_args[:rubycom_non_opt_arg])]
+        ret = Hash[param_sym, ((!sorted_args[param_sym].nil?) ? sorted_args[param_sym] : sorted_args[:rubycom_non_opt_arg])]
         sorted_args[:rubycom_non_opt_arg] = []
         ret
       end
