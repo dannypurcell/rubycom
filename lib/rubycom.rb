@@ -37,54 +37,73 @@ module Rubycom
       command = args[0] || nil
       arguments = args[1..-1] || []
 
-      if command == 'help'
-        help_topic = arguments[0]
-        if help_topic.nil?
-          usage = Documentation.get_usage(base)
-          puts usage
-          return usage
-        else
-          cmd_usage = Documentation.get_command_usage(base, help_topic, arguments[1..-1])
-          puts cmd_usage
-          return cmd_usage
-        end
-      elsif command == 'job'
-        begin
-          raise CLIError, 'No job specified' if arguments[0].nil? || arguments[0].empty?
-          job_hash = YAML.load_file(arguments[0])
-          job_hash = {} if job_hash.nil?
-          STDOUT.sync = true
-          if arguments.delete('-test') || arguments.delete('--test')
-            puts "[Test Job #{arguments[0]}]"
-            job_hash['steps'].each { |step, step_hash|
-              step = "[Step: #{step}/#{job_hash['steps'].length}]"
-              context = step_hash.select{|key| key!="cmd"}.map{|key,val| "[#{key}: #{val}]"}.join(' ')
-              env = job_hash['env'] || {}
-              env.map { |key, val| step_hash['cmd'].gsub!("env[#{key}]", "#{((val.class == String)&&(val.match(/\w+/))) ? "\"#{val}\"" : val}") }
-              cmd = "[cmd: #{step_hash['cmd']}]"
-              puts "#{[step,context,cmd].join(' ')}"
-            }
+      case command
+        when 'register_completions'
+          self.register_completions(base)
+        when 'tab_complete'
+          self.tab_complete(base, args)
+        when 'help'
+          help_topic = arguments[0]
+          if help_topic.nil?
+            usage = Documentation.get_usage(base)
+            default_usage = Documentation.get_default_commands_usage
+            puts usage
+            puts default_usage
+            return usage+"\n"+default_usage
+          elsif help_topic == 'job'
+            usage = Documentation.get_job_usage(base)
+            puts usage
+            return usage
+          elsif help_topic == 'register_completions'
+            usage = Documentation.get_register_completions_usage(base)
+            puts usage
+            return usage
+          elsif help_topic == 'tab_complete'
+            usage = Documentation.get_tab_complete_usage(base)
+            puts usage
+            return usage
           else
-            puts "[Job #{arguments[0]}]"
-            job_hash['steps'].each { |step, step_hash|
-              step = "[Step: #{step}/#{job_hash['steps'].length}]"
-              context = step_hash.select{|key| key!="cmd"}.map{|key,val| "[#{key}: #{val}]"}.join(' ')
-              env = job_hash['env'] || {}
-              env.map { |key, val| step_hash['cmd'].gsub!("env[#{key}]", "#{((val.class == String)&&(val.match(/\w+/))) ? "\"#{val}\"" : val}") }
-              cmd = "[cmd: #{step_hash['cmd']}]"
-              puts "#{[step,context,cmd].join(' ')}"
-              system(step_hash['cmd'])
-            }
+            cmd_usage = Documentation.get_command_usage(base, help_topic, arguments[1..-1])
+            puts cmd_usage
+            return cmd_usage
           end
-        rescue CLIError => e
-          $stderr.puts e
-        end
-      else
-        output = self.run_command(base, command, arguments)
-        std_output = nil
-        std_output = output.to_yaml unless [String, NilClass, TrueClass, FalseClass, Fixnum, Float, Symbol].include?(output.class)
-        puts std_output || output
-        return output
+        when 'job'
+          begin
+            raise CLIError, 'No job specified' if arguments[0].nil? || arguments[0].empty?
+            job_hash = YAML.load_file(arguments[0])
+            job_hash = {} if job_hash.nil?
+            STDOUT.sync = true
+            if arguments.delete('-test') || arguments.delete('--test')
+              puts "[Test Job #{arguments[0]}]"
+              job_hash['steps'].each { |step, step_hash|
+                step = "[Step: #{step}/#{job_hash['steps'].length}]"
+                context = step_hash.select { |key| key!="cmd" }.map { |key, val| "[#{key}: #{val}]" }.join(' ')
+                env = job_hash['env'] || {}
+                env.each { |key, val| step_hash['cmd'].gsub!("env[#{key}]", "#{((val.class == String)&&(val.match(/\w+/))) ? "\"#{val}\"" : val}") }
+                cmd = "[cmd: #{step_hash['cmd']}]"
+                puts "#{[step, context, cmd].join(' ')}"
+              }
+            else
+              puts "[Job #{arguments[0]}]"
+              job_hash['steps'].each { |step, step_hash|
+                step = "[Step: #{step}/#{job_hash['steps'].length}]"
+                context = step_hash.select { |key| key!="cmd" }.map { |key, val| "[#{key}: #{val}]" }.join(' ')
+                env = job_hash['env'] || {}
+                env.each { |key, val| step_hash['cmd'].gsub!("env[#{key}]", "#{((val.class == String)&&(val.match(/\w+/))) ? "\"#{val}\"" : val}") }
+                cmd = "[cmd: #{step_hash['cmd']}]"
+                puts "#{[step, context, cmd].join(' ')}"
+                system(step_hash['cmd'])
+              }
+            end
+          rescue CLIError => e
+            $stderr.puts e
+          end
+        else
+          output = self.run_command(base, command, arguments)
+          std_output = nil
+          std_output = output.to_yaml unless [String, NilClass, TrueClass, FalseClass, Fixnum, Float, Symbol].include?(output.class)
+          puts std_output || output
+          return output
       end
 
     rescue CLIError => e
@@ -111,10 +130,10 @@ module Rubycom
         param_defs = Arguments.get_param_definitions(method)
         args = Arguments.parse_arguments(param_defs, arguments)
         flatten = false
-        params = method.parameters.map { |arr| flatten = true if arr[0]==:rest; args[arr[1]]}
+        params = method.parameters.map { |arr| flatten = true if arr[0]==:rest; args[arr[1]] }
         if flatten
           rest_arr = params.delete_at(-1)
-          rest_arr.each{|arg| params << arg}
+          rest_arr.each { |arg| params << arg }
         end
         (arguments.nil? || arguments.empty?) ? method.call : method.call(*params)
       end
@@ -122,6 +141,39 @@ module Rubycom
       $stderr.puts e
       $stderr.puts Documentation.get_command_usage(base, command, arguments)
     end
+  end
+
+  def self.register_completions(base)
+    completion_function = <<-END.gsub(/^ {4}/, '')
+
+    _#{base}_complete() {
+      COMPREPLY=()
+      local completions="$(ruby #{File.absolute_path($0)} tab_complete ${COMP_WORDS[*]})"
+      COMPREPLY=( $(compgen -W "$completions") )
+    }
+    complete -o bashdefault -o default -o nospace -F _#{base}_complete #{$0.split('/').last}
+    END
+
+    already_registered = File.readlines("#{Dir.home}/.bash_profile").map { |line| line.include?("_#{base}_complete()") }.reduce(:|) rescue false
+    if already_registered
+      puts "Completion function for #{base} already registered."
+    else
+      File.open("#{Dir.home}/.bash_profile", 'a+') { |file|
+        file.write(completion_function)
+      }
+      puts "Registration complete, run 'source #{Dir.home}/.bash_profile' to enable auto-completion."
+    end
+  end
+
+  def self.tab_complete(base, arguments)
+    args = (arguments.include?("tab_complete")) ? arguments[2..-1] : arguments
+    matches = ""
+    if args.length == 1
+      matches = Rubycom::Commands.get_top_level_commands(base).map { |sym| sym.to_s }.select { |word| !word.match(/^#{args[0]}/).nil? }
+    elsif args.length > 1
+      matches = self.tab_complete(Kernel.const_get(args[0].to_sym), args[1..-1])
+    end unless base.nil? || args.nil?
+    puts matches
   end
 
 end

@@ -67,6 +67,13 @@ class RubycomTest < Test::Unit::TestCase
     test_command_arg_arr        -  A test_command with an array argument
     test_command_arg_hash       -  A test_command with an Hash argument
     test_command_mixed_options  -  A test_command with several mixed options
+
+    Default Commands:
+    help                 - prints this help page
+    job                  - run a job file
+    register_completions - setup bash tab completion
+    tab_complete         - print a list of possible matches for a given word
+
     END
     expected_out = expected
     assert_equal(expected.gsub(/\n|\r|\s/, ''), result.gsub(/\n|\r|\s/, ''))
