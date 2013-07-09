@@ -280,10 +280,10 @@ module Rubycom
       m = base.public_method(command_name.to_sym)
       method_doc = self.get_doc(m) || {}
 
-      msg = "Usage: #{m.name} #{self.get_param_usage(m)}\n"
-      msg << "#{"Parameters:"}\n" unless m.parameters.empty?
+      msg = "Usage: #{m.name}#{self.get_param_usage(m)}\n"
+      msg << "Parameters:\n    " unless m.parameters.empty?
       msg << "#{method_doc[:param].join("\n    ")}\n" unless method_doc[:param].nil?
-      msg << "#{"Returns:"}\n"  unless method_doc[:return].nil?
+      msg << "Returns:\n    "  unless method_doc[:return].nil?
       msg << "#{method_doc[:return].join("\n    ")}\n" unless method_doc[:return].nil?
       msg
     end
