@@ -1,4 +1,5 @@
 require 'yard'
+require 'rake/testtask'
 
 task :default => [:package]
 
@@ -9,19 +10,19 @@ task :clean do
   FileUtils.rm(Dir.glob('./rubycom-*.gem'))
 end
 
-task :test do
-  test_files = Dir.glob("**/test/*/test_*.rb")
-  test_files.each { |test_case|
-    ruby test_case rescue SystemExit
-    if $?.exitstatus != 0;
-      raise "Error during test phase\n Test: #{test_case}\n Error: #{$!}\n#{$@}" unless $!.nil?
-    end
-  }
+task :bundle do
+  system("bundle install")
+end
+
+Rake::TestTask.new do |t|
+  t.libs << "test"
+  t.test_files = FileList['test/*/*_test.rb']
+  t.verbose = true
 end
 
 YARD::Rake::YardocTask.new
 
-task :package => [:clean, :test, :yard] do
+task :package => [:clean, :bundle, :test, :yard] do
   gem_specs = Dir.glob("**/*.gemspec")
   gem_specs.each { |gem_spec|
     system("gem build #{gem_spec}")
@@ -34,7 +35,15 @@ task :install => :package do
   system("gem install #{File.expand_path(File.dirname(__FILE__))}/rubycom-#{Rubycom::VERSION}.gem")
 end
 
+task :upgrade => :package do
+  system("gem uninstall rubycom -a")
+  load "#{File.expand_path(File.dirname(__FILE__))}/lib/rubycom/version.rb"
+  system("gem install #{File.expand_path(File.dirname(__FILE__))}/rubycom-#{Rubycom::VERSION}.gem")
+end
+
 task :version_set, [:version] do |t, args|
+  raise "Must provide a version.\n If you called 'rake version_set 1.2.3', try 'rake version_set[1.2.3]'" if args[:version].nil? || args[:version].empty?
+
   version_file = <<-END.gsub(/^ {4}/, '')
     module Rubycom
       VERSION = "#{args[:version]}"
