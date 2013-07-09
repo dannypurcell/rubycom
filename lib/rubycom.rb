@@ -148,7 +148,7 @@ module Rubycom
 
     _#{base}_complete() {
       COMPREPLY=()
-      local completions="$(ruby #{File.absolute_path($0)} tab_complete ${COMP_WORDS[*]})"
+      local completions="$(ruby #{File.absolute_path($0)} tab_complete ${COMP_WORDS[*]} 2>/dev/null)"
       COMPREPLY=( $(compgen -W "$completions") )
     }
     complete -o bashdefault -o default -o nospace -F _#{base}_complete #{$0.split('/').last}
