@@ -25,7 +25,7 @@ class TestRubycom < Test::Unit::TestCase
     command_name = 'test_command_arg_false'
     result = Rubycom.get_command_usage(base, command_name)
     expected = <<-END.gsub(/^ {4}/, '')
-    Usage: test_command_arg_false [-test_flag=val]
+    Usage: test_command_arg_false [-test_flag=false]
     Parameters:
         [Boolean] test_flag a test Boolean argument
     Returns:

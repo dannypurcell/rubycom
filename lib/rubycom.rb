@@ -294,18 +294,26 @@ module Rubycom
   # @param [Method] method the Method object to generate usage for
   def self.get_param_usage(method)
     return "" if method.parameters.nil? || method.parameters.empty?
-    method.parameters.map { |type, param| {type => param}
-    }.group_by { |entry| entry.keys.first
-    }.map { |key, val| Hash[key, val.map { |param| param.values.first }]
-    }.reduce(&:merge).map { |type, arr|
-      if type == :req
-        Hash[type, arr.map { |param| " <#{param.to_s}>" }.reduce(:+)]
-      elsif type == :opt
-        Hash[type, "[#{arr.map { |param| "-#{param}=val" }.join("|")}]"]
+    Rubycom.get_param_definitions(method).group_by{|_,hsh|
+      hsh[:type]
+    }.map{|key, val_arr|
+      vals = Hash[*val_arr.flatten]
+      {
+          key => if key == :opt
+                   vals.map{|param,val_hsh| "-#{param.to_s}=#{val_hsh[:default]}"}
+                 elsif key == :req
+                   vals.keys.map{|param| " <#{param.to_s}>"}
+                 else
+                   vals.keys.map{|param| " [&#{param.to_s}]"}
+                 end
+      }
+    }.reduce(&:merge).map{|type, param_arr|
+      if type == :opt
+        " [#{param_arr.join("|")}]"
       else
-        Hash[type, "[&#{arr.join(',')}]"]
+        param_arr.join
       end
-    }.reduce(&:merge).values.join(" ")
+    }.join
   end
 
   # Builds a hash mapping parameter names (as symbols) to their
