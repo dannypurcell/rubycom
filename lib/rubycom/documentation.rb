@@ -147,6 +147,7 @@ module Rubycom
       }.reduce(&:merge)
     end
 
+    # @return [String] the usage message for Rubycom's default commands
     def self.get_default_commands_usage()
       <<-END.gsub(/^ {6}/,'')
 
@@ -158,6 +159,7 @@ module Rubycom
       END
     end
 
+    # @return [String] the usage message for Rubycom's job runner
     def self.get_job_usage(base)
       <<-END.gsub(/^ {6}/,'')
       Usage: #{base} job <job_path>

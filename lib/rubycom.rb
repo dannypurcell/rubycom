@@ -39,9 +39,9 @@ module Rubycom
 
       case command
         when 'register_completions'
-          self.register_completions(base)
+          puts self.register_completions(base)
         when 'tab_complete'
-          self.tab_complete(base, args)
+          puts self.tab_complete(base, args)
         when 'help'
           help_topic = arguments[0]
           if help_topic.nil?
@@ -143,6 +143,11 @@ module Rubycom
     end
   end
 
+  # Inserts a tab completion into the current user's .bash_profile with a command entry to register the function for
+  # the current running ruby file
+  #
+  # @param [Module] base the module which invoked 'include Rubycom'
+  # @return [String] a message indicating the result of the command
   def self.register_completions(base)
     completion_function = <<-END.gsub(/^ {4}/, '')
 
@@ -156,24 +161,41 @@ module Rubycom
 
     already_registered = File.readlines("#{Dir.home}/.bash_profile").map { |line| line.include?("_#{base}_complete()") }.reduce(:|) rescue false
     if already_registered
-      puts "Completion function for #{base} already registered."
+      "Completion function for #{base} already registered."
     else
       File.open("#{Dir.home}/.bash_profile", 'a+') { |file|
         file.write(completion_function)
       }
-      puts "Registration complete, run 'source #{Dir.home}/.bash_profile' to enable auto-completion."
+      "Registration complete, run 'source #{Dir.home}/.bash_profile' to enable auto-completion."
     end
   end
 
+  # Discovers a list of possible matches to the given arguments
+  # Intended for use with bash tab completion
+  #
+  # @param [Module] base the module which invoked 'include Rubycom'
+  # @param [Array] arguments a String Array representing the arguments to be matched
+  # @return [Array] a String Array including the possible matches for the given arguments
   def self.tab_complete(base, arguments)
+    arguments = [] if arguments.nil?
     args = (arguments.include?("tab_complete")) ? arguments[2..-1] : arguments
-    matches = ""
-    if args.length == 1
+    matches = ['']
+    if args.nil? || args.empty?
+      matches = Rubycom::Commands.get_top_level_commands(base).map { |sym| sym.to_s }
+    elsif args.length == 1
       matches = Rubycom::Commands.get_top_level_commands(base).map { |sym| sym.to_s }.select { |word| !word.match(/^#{args[0]}/).nil? }
+      if matches.size == 1 && matches[0] == args[0]
+        matches = self.tab_complete(Kernel.const_get(args[0].to_sym), args[1..-1])
+      end
     elsif args.length > 1
-      matches = self.tab_complete(Kernel.const_get(args[0].to_sym), args[1..-1])
-    end unless base.nil? || args.nil?
-    puts matches
+      begin
+        matches = self.tab_complete(Kernel.const_get(args[0].to_sym), args[1..-1])
+      rescue Exception
+        matches = ['']
+      end
+    end unless base.nil?
+    matches = [''] if matches.nil? || matches.include?(args[0])
+    matches
   end
 
 end

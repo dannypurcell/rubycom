@@ -414,4 +414,114 @@ class RubycomTest < Test::Unit::TestCase
     assert_equal(expected, result)
   end
 
+  def test_tab_complete_nil_arg
+    mod = UtilTestComposite
+    args = nil
+    expected = ["test_composite_command", "UtilTestNoSingleton", "UtilTestModule"]
+    result =  Rubycom.tab_complete(mod, args)
+    assert_equal(expected, result)
+  end
+
+  def test_tab_complete_empty_arg
+    mod = UtilTestComposite
+    args = ['']
+    expected = ["test_composite_command", "UtilTestNoSingleton", "UtilTestModule"]
+    result =  Rubycom.tab_complete(mod, args)
+    assert_equal(expected, result)
+  end
+
+  def test_tab_complete_partial_module
+    mod = UtilTestComposite
+    args = ['Util']
+    expected = ["UtilTestNoSingleton", "UtilTestModule"]
+    result =  Rubycom.tab_complete(mod, args)
+    assert_equal(expected, result)
+  end
+
+  def test_tab_complete_partial_module_single_match
+    mod = UtilTestComposite
+    args = ['UtilTestM']
+    expected = ["UtilTestModule"]
+    result =  Rubycom.tab_complete(mod, args)
+    assert_equal(expected, result)
+  end
+
+  def test_tab_complete_whole_module
+    mod = UtilTestComposite
+    args = ['UtilTestModule']
+    expected = ["test_command",
+                "test_command_no_docs",
+                "test_command_with_arg",
+                "test_command_arg_named_arg",
+                "test_command_with_args",
+                "test_command_with_options",
+                "test_command_all_options",
+                "test_command_options_arr",
+                "test_command_with_return",
+                "test_command_arg_timestamp",
+                "test_command_arg_false",
+                "test_command_arg_arr",
+                "test_command_arg_hash",
+                "test_command_mixed_options"]
+    result =  Rubycom.tab_complete(mod, args)
+    assert_equal(expected, result)
+  end
+
+  def test_tab_complete_empty_sub_command
+    mod = UtilTestComposite
+    args = ['UtilTestModule', '']
+    expected = ["test_command",
+                "test_command_no_docs",
+                "test_command_with_arg",
+                "test_command_arg_named_arg",
+                "test_command_with_args",
+                "test_command_with_options",
+                "test_command_all_options",
+                "test_command_options_arr",
+                "test_command_with_return",
+                "test_command_arg_timestamp",
+                "test_command_arg_false",
+                "test_command_arg_arr",
+                "test_command_arg_hash",
+                "test_command_mixed_options"]
+    result =  Rubycom.tab_complete(mod, args)
+    assert_equal(expected, result)
+  end
+
+  def test_tab_complete_partial_sub_command
+    mod = UtilTestComposite
+    args = ['UtilTestModule', 'test_command_ar']
+    expected = ["test_command_arg_named_arg",
+                "test_command_arg_timestamp",
+                "test_command_arg_false",
+                "test_command_arg_arr",
+                "test_command_arg_hash"]
+    result =  Rubycom.tab_complete(mod, args)
+    assert_equal(expected, result)
+  end
+
+  def test_tab_complete_whole_sub_command_single_match
+    mod = UtilTestComposite
+    args = ['UtilTestModule', 'test_command_with_options']
+    expected = ['']
+    result =  Rubycom.tab_complete(mod, args)
+    assert_equal(expected, result)
+  end
+
+  def test_tab_complete_whole_sub_command_multi_match
+    mod = UtilTestComposite
+    args = ['UtilTestModule', 'test_command_with_arg']
+    expected = ['']
+    result =  Rubycom.tab_complete(mod, args)
+    assert_equal(expected, result)
+  end
+
+  def test_tab_complete_whole_sub_command_with_empty
+    mod = UtilTestComposite
+    args = ['UtilTestModule', 'test_command_with_args', '']
+    expected = ['']
+    result =  Rubycom.tab_complete(mod, args)
+    assert_equal(expected, result)
+  end
+
 end
