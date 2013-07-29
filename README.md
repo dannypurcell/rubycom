@@ -20,6 +20,8 @@ by simply including Rubycom at the bottom.
 * Method parameters become required CLI arguments. Optional (defaulted) parameters become CLI options.
 * Command consoles can be built up by including other modules before including Rubycom.
 * Included modules become commands, their public singleton methods become sub-commands.
+* Built in tab completion support for all commands.
+    * Users may call `./path/to/my_command.rb register_completions` then `source ~/.bash_profile` to register completions.
 
 Usage
 ---------------
@@ -131,11 +133,13 @@ If a set of functions needs to be accessible from the terminal, just `include Ru
 * Usage documentation is pulled from method comments.
 * Method parameters become required CLI arguments.
 * Optional (defaulted) parameters become CLI options.
+* Tab completion support if the user has registered it for the file.
 
 The result is a function library which can be consumed easily from other classes/modules and which is accessible from the command line.
 
 Coming Soon
 ---------------
+* Support for piping.
 * Build a job yaml by running each command in sequence with a special option --job_add <path_to_yaml>[:step_number]
 * Edit job files from the command line using special options.
     * --job_update <path_to_yaml>[:step_number]
