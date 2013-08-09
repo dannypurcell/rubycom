@@ -18,13 +18,23 @@ module Rubycom
   #
   # @param [Module] base the module which invoked 'include Rubycom'
   def self.included(base)
-    raise CLIError, 'base must be a module' if base.class != Module
     base_file_path = caller.first.gsub(/:\d+:.+/, '')
-    if base_file_path == $0
+    if base.class == Module && (base_file_path == $0 || self.is_executed_by_gem?(base_file_path))
       base.module_eval {
         Rubycom.run(base, ARGV)
       }
     end
+  end
+
+  # Determines whether the including module was executed by a gem binary
+  #
+  # @param [String] base_file_path the path to the including module's source file
+  def self.is_executed_by_gem?(base_file_path)
+    Gem.loaded_specs.map{|k,s|
+      {k => {name: "#{s.name}-#{s.version}", executables: s.executables}}
+    }.reduce(&:merge).map{|k,s|
+      base_file_path.include?(s[:name]) && s[:executables].include?(File.basename(base_file_path))
+    }.flatten.reduce(&:|)
   end
 
   # Looks up the command specified in the first arg and executes with the rest of the args
