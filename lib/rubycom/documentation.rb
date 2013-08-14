@@ -31,17 +31,7 @@ module Rubycom
       raise CLIError, "Can not get usage for #{command_name} with base: #{base||"nil"}" if base.nil? || !base.respond_to?(:included_modules)
       return 'No command specified.' if command_name.nil? || command_name.length == 0
       if base.included_modules.map { |mod| mod.name.to_sym }.include?(command_name.to_sym)
-        begin
-          mod_const = Kernel.const_get(command_name.to_sym)
-          desc = File.read(mod_const.public_method(mod_const.singleton_methods().first).source_location.first).split(//).reduce("") { |str, c|
-            unless str.gsub("\n", '').gsub(/\s+/, '').include?("module#{mod_const}")
-              str << c
-            end
-            str
-          }.split("\n").select { |line| line.strip.match(/^#/) && !line.strip.match(/^#!/) }.map { |line| line.strip.gsub(/^#+/, '') }.join("\n")
-        rescue
-          desc = ""
-        end
+        desc = self.get_module_doc(command_name)
       else
         raise CLIError, "Invalid command for #{base}, #{command_name}" unless base.public_methods.include?(command_name.to_sym)
         desc = self.get_doc(base.public_method(command_name.to_sym))[:desc].join("\n") rescue ""
@@ -126,6 +116,24 @@ module Rubycom
           param_arr.join
         end
       }.join
+    end
+
+    # Retrieves the given module's documentation from it's source code
+    #
+    # @param [String] base_name
+    # @return [String] the documentation text from the top of the specified module
+    def self.get_module_doc(base_name)
+      begin
+        mod_const = Kernel.const_get(base_name.to_sym)
+        File.read(mod_const.public_method(mod_const.singleton_methods().first).source_location.first).split(//).reduce("") { |str, c|
+          unless str.gsub("\n", '').gsub(/\s+/, '').include?("module#{mod_const}")
+            str << c
+          end
+          str
+        }.split("\n").select { |line| line.strip.match(/^#/) && !line.strip.match(/^#!/) }.map { |line| line.strip.gsub(/^#+/, '') }.join("\n")
+      rescue
+        ""
+      end
     end
 
     # Retrieves the given method's documentation from it's source code

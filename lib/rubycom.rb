@@ -122,10 +122,11 @@ module Rubycom
     end
   end
 
-  # Calls the given Method#name on the given Module after parsing the given Array of arguments
+  # Handles the method call according to the given arguments. If the specified command is a Module then a recursive search
+  # is performed until a Method is found in the specified arguments.
   #
   # @param [Module] base the module which invoked 'include Rubycom'
-  # @param [String] command the name of the Method to call
+  # @param [String] command the name of the command to call, may be a Module name or a Method
   # @param [Array] arguments a String Array representing the arguments for the given command
   def self.run_command(base, command, arguments=[])
     arguments = [] if arguments.nil?
@@ -135,22 +136,36 @@ module Rubycom
       if base.included_modules.map { |mod| mod.name.to_sym }.include?(command.to_sym)
         self.run_command(eval(command), arguments[0], arguments[1..-1])
       else
-        method = base.public_method(command.to_sym)
-        raise CLIError, "No public method found for symbol: #{command.to_sym}" if method.nil?
-        param_defs = Arguments.get_param_definitions(method)
-        args = Arguments.parse_arguments(param_defs, arguments)
-        flatten = false
-        params = method.parameters.map { |arr| flatten = true if arr[0]==:rest; args[arr[1]] }
-        if flatten
-          rest_arr = params.delete_at(-1)
-          rest_arr.each { |arg| params << arg }
-        end
-        (arguments.nil? || arguments.empty?) ? method.call : method.call(*params)
+        self.call_method(base, command, arguments)
       end
     rescue CLIError => e
       $stderr.puts e
       $stderr.puts Documentation.get_command_usage(base, command, arguments)
     end
+  end
+
+  # Calls the given command on the given Module after parsing the given Array of arguments
+  #
+  # @param [Module] base the module wherein the specified command is defined
+  # @param [String] command the name of the Method to call
+  # @param [Array] arguments a String Array representing the arguments for the given command
+  # @return the result of the specified Method call
+  def self.call_method(base, command, arguments=[])
+    method = base.public_method(command.to_sym)
+    raise CLIError, "No public method found for symbol: #{command.to_sym}" if method.nil?
+    param_defs = Arguments.get_param_definitions(method)
+    args = Arguments.parse_arguments(param_defs, arguments)
+    flatten = false
+    params = method.parameters.map { |arr| flatten = true if arr[0]==:rest; args[arr[1]] }
+    if flatten
+      rest_arr = params.delete_at(-1)
+      if rest_arr.respond_to?(:each)
+        rest_arr.each { |arg| params << arg }
+      else
+        params << rest_arr
+      end
+    end
+    (arguments.nil? || arguments.empty?) ? method.call : method.call(*params)
   end
 
   # Inserts a tab completion into the current user's .bash_profile with a command entry to register the function for
