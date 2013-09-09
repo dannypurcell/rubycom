@@ -60,12 +60,23 @@ module Rubycom
         k, v = arg.partition(/^(-|--)\w+[=|\s]{1}/).select { |part|
           !part.empty?
         }.each_with_index.map { |part, index|
-          index == 0 ? part.chomp('=').gsub(/^--/, '').gsub(/^-/, '').strip.to_sym : (YAML.load(part) rescue "#{part}")
+          if index == 0
+            part.chomp('=').gsub(/^--/, '').gsub(/^-/, '').strip.to_sym
+          else
+            if part.start_with?("#") || part.start_with?("!")
+              "#{part}"
+            else
+              (YAML.load(part) rescue "#{part}")
+            end
+          end
         }
         Hash[k, v]
       else
         begin
-          parsed_arg = YAML.load("#{arg}")
+          parsed_arg = "#{arg}"
+          unless arg.start_with?("#") || arg.start_with?("!")
+            parsed_arg = YAML.load("#{arg}")
+          end
         rescue Exception
           parsed_arg = "#{arg}"
         end

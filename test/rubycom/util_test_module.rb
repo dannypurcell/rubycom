@@ -53,7 +53,7 @@ module UtilTestModule
 
   # A test_command with an options array
   # @param [String] test_option an optional test argument
-  # @param [String] test_options an optional array of arguments
+  # @param [Array] test_options an optional array of arguments
   def self.test_command_options_arr (
       test_option="test_option_default",
           *test_options
