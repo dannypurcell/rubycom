@@ -145,4 +145,145 @@ class ArgumentsTest < Test::Unit::TestCase
     assert_equal(expected, result)
   end
 
+  def test_parse_args_no_params
+    test_method = UtilTestModule.public_method(:test_command)
+    params = Rubycom::Arguments.get_param_definitions(test_method)
+    arguments = []
+    expected = nil
+    result = Rubycom::Arguments.resolve(params, arguments)
+    assert_equal(expected, result)
+  end
+
+  def test_parse_args_one_param
+    test_method = UtilTestModule.public_method(:test_command_with_arg)
+    params = Rubycom::Arguments.get_param_definitions(test_method)
+    arguments = ["abc"]
+    expected = {:test_arg=>"abc"}
+    result = Rubycom::Arguments.resolve(params, arguments)
+    assert_equal(expected, result)
+  end
+
+  def test_parse_args_one_param_array
+    test_method = UtilTestModule.public_method(:test_command_with_arg)
+    params = Rubycom::Arguments.get_param_definitions(test_method)
+    arguments = ["[a,b,c,1,2,3]"]
+    expected = {:test_arg=>['a','b','c',1,2,3]}
+    result = Rubycom::Arguments.resolve(params, arguments)
+    assert_equal(expected, result)
+  end
+
+  def test_parse_args_one_param_hash
+    test_method = UtilTestModule.public_method(:test_command_with_arg)
+    params = Rubycom::Arguments.get_param_definitions(test_method)
+    arguments = ["{abc: 123}"]
+    expected = {:test_arg=>{"abc"=>123}}
+    result = Rubycom::Arguments.resolve(params, arguments)
+    assert_equal(expected, result)
+  end
+
+  def test_parse_args_too_many_args
+    test_method = UtilTestModule.public_method(:test_command)
+    params = Rubycom::Arguments.get_param_definitions(test_method)
+    arguments = ["123"]
+    expected = nil
+    result = nil
+    assert_raise Rubycom::CLIError do
+      result = Rubycom::Arguments.resolve(params, arguments)
+    end
+    assert_equal(expected, result)
+  end
+
+  def test_parse_args_too_few_args
+    test_method = UtilTestModule.public_method(:test_command_with_arg)
+    params = Rubycom::Arguments.get_param_definitions(test_method)
+    arguments = []
+    expected = nil
+    result = nil
+    assert_raise Rubycom::CLIError do
+      result = Rubycom::Arguments.resolve(params, arguments)
+    end
+    assert_equal(expected, result)
+  end
+
+  def test_parse_args_with_options
+    test_method = UtilTestModule.public_method(:test_command_with_options)
+    params = Rubycom::Arguments.get_param_definitions(test_method)
+    arguments = [";asd"]
+    expected = {:test_arg=>";asd", :test_option=>"option_default"}
+    result = Rubycom::Arguments.resolve(params, arguments)
+    assert_equal(expected, result)
+  end
+
+  def test_parse_args_with_options_filled
+    test_method = UtilTestModule.public_method(:test_command_with_options)
+    params = Rubycom::Arguments.get_param_definitions(test_method)
+    arguments = ["[1,2,3]","--test_option=abc"]
+    expected = {:test_arg=>[1, 2, 3], :test_option=>"abc"}
+    result = Rubycom::Arguments.resolve(params, arguments)
+    assert_equal(expected, result)
+  end
+
+  def test_parse_args_all_options
+    test_method = UtilTestModule.public_method(:test_command_all_options)
+    params = Rubycom::Arguments.get_param_definitions(test_method)
+    arguments = []
+    expected = {:test_arg=>"test_arg_default", :test_option=>"test_option_default"}
+    result = Rubycom::Arguments.resolve(params, arguments)
+    assert_equal(expected, result)
+  end
+
+  def test_parse_args_all_opts_args_entered
+    test_method = UtilTestModule.public_method(:test_command_all_options)
+    params = Rubycom::Arguments.get_param_definitions(test_method)
+    arguments = ["[1,2,3]","abc"]
+    expected = {:test_arg=>[1, 2, 3], :test_option=>"abc"}
+    result = Rubycom::Arguments.resolve(params, arguments)
+    assert_equal(expected, result)
+  end
+
+  def test_parse_args_all_opts_filled
+    test_method = UtilTestModule.public_method(:test_command_all_options)
+    params = Rubycom::Arguments.get_param_definitions(test_method)
+    arguments = ["-test_arg='123asd'","--test_option=[b,c,d]"]
+    expected = {:test_arg=>"123asd", :test_option=>["b","c","d"]}
+    result = Rubycom::Arguments.resolve(params, arguments)
+    assert_equal(expected, result)
+  end
+
+  def test_parse_args_arr_option
+    test_method = UtilTestModule.public_method(:test_command_arg_arr)
+    params = Rubycom::Arguments.get_param_definitions(test_method)
+    arguments = ["--test_arr=['123','abc']"]
+    expected = {:test_arr=>["123","abc"]}
+    result = Rubycom::Arguments.resolve(params, arguments)
+    assert_equal(expected, result)
+  end
+
+  def test_parse_args_options_arr
+    test_method = UtilTestModule.public_method(:test_command_options_arr)
+    params = Rubycom::Arguments.get_param_definitions(test_method)
+    arguments = [",a2","1","2","3","a","b","c"]
+    expected = {:test_option=>",a2", :test_options=>[1, 2, 3, "a", "b", "c"]}
+    result = Rubycom::Arguments.resolve(params, arguments)
+    assert_equal(expected, result)
+  end
+
+  def test_parse_args_options_arr_with_arr
+    test_method = UtilTestModule.public_method(:test_command_options_arr)
+    params = Rubycom::Arguments.get_param_definitions(test_method)
+    arguments = [",a2","[1,2,3,a,b,c]"]
+    expected = {:test_option=>",a2", :test_options=>[[1, 2, 3, "a", "b", "c"]]}
+    result = Rubycom::Arguments.resolve(params, arguments)
+    assert_equal(expected, result)
+  end
+
+  def test_parse_args_hash
+    test_method = UtilTestModule.public_method(:test_command_arg_hash)
+    params = Rubycom::Arguments.get_param_definitions(test_method)
+    arguments = ["{testing: 'arg1', 123: 'abc', abc: 123}"]
+    expected = {:test_hash=>{"testing"=>"arg1", 123=>"abc", "abc"=>123}}
+    result = Rubycom::Arguments.resolve(params, arguments)
+    assert_equal(expected, result)
+  end
+
 end

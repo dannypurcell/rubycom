@@ -13,39 +13,59 @@ module Rubycom
     #                                              }
     # @param [Array] arguments an Array of Strings representing the arguments to be parsed
     # @return [Hash] a Hash mapping the defined parameters to their matching argument values
-    def self.parse_arguments(parameters={}, arguments=[])
+    def self.resolve(parameters={}, arguments=[])
       raise CLIError, 'parameters may not be nil' if parameters.nil?
       raise CLIError, 'arguments may not be nil' if arguments.nil?
-      sorted_args = arguments.map { |arg|
+      parsed_args = self.parse_args(arguments)
+
+      args = parsed_args[:rubycom_non_opt_arg] || []
+      options = parsed_args.select{|key,_| key != :rubycom_non_opt_arg } || {}
+      parsed_arg_count = args.length + options.length
+      types = parameters.values.group_by { |hsh| hsh[:type] }.map { |type, defs_arr| Hash[type, defs_arr.length] }.reduce(&:merge) || {}
+      raise CLIError, "Wrong number of arguments. Expected at least #{types[:req]}, received #{parsed_arg_count}" if parsed_arg_count < (types[:req]||0)
+      raise CLIError, "Wrong number of arguments. Expected at most #{(types[:req]||0) + (types[:opt]||0)}, received #{parsed_arg_count}" if types[:rest].nil? && (parsed_arg_count > ((types[:req]||0) + (types[:opt]||0)))
+
+      self.merge_params(parameters, parsed_args)
+    end
+
+    # Matches the given parameters to the given pre-parsed arguments
+    #
+    # @param [Hash] parameters a Hash representing the parameters to match.
+    #         Entries should match :param_name => { type: :req||:opt||:rest,
+    #                                               def:(source_definition),
+    #                                               default:(default_value || :nil_rubycom_required_param)
+    #                                              }
+    # @param [Hash] parsed_args a Hash of parsed arguments where the keys are either the name of the optional argument
+    #         the value to designated for or :rubycom_non_opt_arg if the argument was not sent for a specified optional parameter
+    # @return [Hash] a Hash mapping the defined parameters to their matching argument values
+    def self.merge_params(parameters={}, parsed_args={})
+      parameters.map { |param_sym, def_hash|
+        if def_hash[:type] == :req
+          raise CLIError, "No argument available for #{param_sym}" if parsed_args[:rubycom_non_opt_arg].nil? || parsed_args[:rubycom_non_opt_arg].length == 0
+          Hash[param_sym, parsed_args[:rubycom_non_opt_arg].shift]
+        elsif def_hash[:type] == :opt
+          if parsed_args[param_sym].nil?
+            arg = (parsed_args[:rubycom_non_opt_arg].nil? || parsed_args[:rubycom_non_opt_arg].empty?) ? parameters[param_sym][:default] : parsed_args[:rubycom_non_opt_arg].shift
+          else
+            arg = parsed_args[param_sym]
+          end
+          Hash[param_sym, arg]
+        elsif def_hash[:type] == :rest
+          ret = Hash[param_sym, ((!parsed_args[param_sym].nil?) ? parsed_args[param_sym] : parsed_args[:rubycom_non_opt_arg])]
+          parsed_args[:rubycom_non_opt_arg] = []
+          ret
+        end
+      }.reduce(&:merge)
+    end
+
+    def self.parse_args(arguments)
+      arguments.map { |arg|
         self.parse_arg(arg)
       }.group_by { |hsh|
         hsh.keys.first
       }.map { |key, arr|
         (key == :rubycom_non_opt_arg) ? Hash[key, arr.map { |hsh| hsh.values }.flatten(1)] : Hash[key, arr.map { |hsh| hsh.values.first }.reduce(&:merge)]
       }.reduce(&:merge) || {}
-
-      sorted_arg_count = sorted_args.map { |key, val| val }.flatten(1).length
-      types = parameters.values.group_by { |hsh| hsh[:type] }.map { |type, defs_arr| Hash[type, defs_arr.length] }.reduce(&:merge) || {}
-      raise CLIError, "Wrong number of arguments. Expected at least #{types[:req]}, received #{sorted_arg_count}" if sorted_arg_count < (types[:req]||0)
-      raise CLIError, "Wrong number of arguments. Expected at most #{(types[:req]||0) + (types[:opt]||0)}, received #{sorted_arg_count}" if types[:rest].nil? && (sorted_arg_count > ((types[:req]||0) + (types[:opt]||0)))
-
-      parameters.map { |param_sym, def_hash|
-        if def_hash[:type] == :req
-          raise CLIError, "No argument available for #{param_sym}" if sorted_args[:rubycom_non_opt_arg].nil? || sorted_args[:rubycom_non_opt_arg].length == 0
-          Hash[param_sym, sorted_args[:rubycom_non_opt_arg].shift]
-        elsif def_hash[:type] == :opt
-          if sorted_args[param_sym].nil?
-            arg = (sorted_args[:rubycom_non_opt_arg].nil? || sorted_args[:rubycom_non_opt_arg].empty?) ? parameters[param_sym][:default] : sorted_args[:rubycom_non_opt_arg].shift
-          else
-            arg = sorted_args[param_sym]
-          end
-          Hash[param_sym, arg]
-        elsif def_hash[:type] == :rest
-          ret = Hash[param_sym, ((!sorted_args[param_sym].nil?) ? sorted_args[param_sym] : sorted_args[:rubycom_non_opt_arg])]
-          sorted_args[:rubycom_non_opt_arg] = []
-          ret
-        end
-      }.reduce(&:merge)
     end
 
     # Uses YAML.load to parse the given String

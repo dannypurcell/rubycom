@@ -154,7 +154,7 @@ module Rubycom
     method = base.public_method(command.to_sym)
     raise CLIError, "No public method found for symbol: #{command.to_sym}" if method.nil?
     param_defs = Arguments.get_param_definitions(method)
-    args = Arguments.parse_arguments(param_defs, arguments)
+    args = Arguments.resolve(param_defs, arguments)
     flatten = false
     params = method.parameters.map { |arr| flatten = true if arr[0]==:rest; args[arr[1]] }
     if flatten

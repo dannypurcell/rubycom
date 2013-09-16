@@ -289,6 +289,16 @@ class RubycomTest < Test::Unit::TestCase
     assert_equal(expected, result)
   end
 
+  def test_run_multi_args
+    mod = "util_test_composite.rb"
+    sub_mod = "UtilTestModule"
+    command = "test_command_with_args"
+    args = "a b"
+    expected = 'test_arg=a,another_test_arg=b'+"\n\n"
+    result = %x(ruby #{File.expand_path(File.dirname(__FILE__))}/#{mod} #{sub_mod} #{command} #{args})
+    assert_equal(expected, result)
+  end
+
   def test_run_missing_required_arg
     tst_out = ''
 
@@ -353,6 +363,15 @@ class RubycomTest < Test::Unit::TestCase
     assert_equal(expected, result)
   end
 
+  def test_full_run_args_for_opts
+    mod = "util_test_module.rb"
+    command = "test_command_mixed_options"
+    args = "testing_arg test2 testing_option test_hsh_arg true some other args"
+    expected = "test_arg=testing_arg test_arr=test2 test_opt=testing_option test_hsh=test_hsh_arg test_bool=true test_rest=[\"some\", \"other\", \"args\"]"+"\n"
+    result = %x(ruby #{File.expand_path(File.dirname(__FILE__))}/#{mod} #{command} #{args})
+    assert_equal(expected, result)
+  end
+
   def test_full_run_mixed_args_solid_arr
     mod = "util_test_module.rb"
     command = "test_command_mixed_options"
@@ -401,7 +420,7 @@ class RubycomTest < Test::Unit::TestCase
   def test_full_run_sharp_arg
     mod = "util_test_module.rb"
     command = "test_command_mixed_options"
-    args = "# \"[test1, test2]\" -test_opt='testing_option' \"{a: 'test_hsh_arg'}\" -test_bool=true some other args"
+    args = '#' + " \"[test1, test2]\" -test_opt='testing_option' \"{a: 'test_hsh_arg'}\" -test_bool=true some other args"
     expected = 'test_arg=# test_arr=["test1", "test2"] test_opt=testing_option test_hsh={"a"=>"test_hsh_arg"} test_bool=true test_rest=["some", "other", "args"]'+"\n"
     result = %x(ruby #{File.expand_path(File.dirname(__FILE__))}/#{mod} #{command} #{args})
     assert_equal(expected, result)
