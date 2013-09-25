@@ -2,6 +2,25 @@ require "#{File.dirname(__FILE__)}/commands.rb"
 
 module Rubycom
   module Documentation
+    def self.module_doc(plugin=:yard, opts={})
+      case plugin
+        when :yard
+          load "#{File.dirname(__FILE__)}/documentation/yard_doc.rb"
+          Rubycom::Documentation::YardDoc.module_doc(opts[:name],opts[:source])
+        else
+          raise "Cannot run module: No Documentation plugin found for #{plugin}"
+      end
+    end
+
+    def self.command_doc(plugin=:yard, opts={})
+      case plugin
+        when :yard
+          load "#{File.dirname(__FILE__)}/documentation/yard_doc.rb"
+          Rubycom::Documentation::YardDoc.command_doc(opts[:name],opts[:source])
+        else
+          raise "Cannot run command: No Documentation plugin found for #{plugin}"
+      end
+    end
 
     # Retrieves the summary for each command method in the given Module
     #
@@ -124,7 +143,7 @@ module Rubycom
     # @return [String] the documentation text from the top of the specified module
     def self.get_module_doc(base_name)
       begin
-        mod_const = Kernel.const_get(base_name.to_sym)
+        mod_const = (base_name.class == Module)? base_name : Kernel.const_get(base_name.to_s.to_sym)
         File.read(mod_const.public_method(mod_const.singleton_methods().first).source_location.first).split(//).reduce("") { |str, c|
           unless str.gsub("\n", '').gsub(/\s+/, '').include?("module#{mod_const}")
             str << c
