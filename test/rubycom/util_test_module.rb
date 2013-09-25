@@ -1,5 +1,7 @@
 require "#{File.expand_path(File.dirname(__FILE__))}/../../lib/rubycom.rb"
 # A command module used for testing
+#
+#some stuff
 module UtilTestModule
 
   # A test non-command method
@@ -77,6 +79,9 @@ module UtilTestModule
 
   # A test_command with a Timestamp argument and an unnecessarily long description which should overflow when
   # it tries to line up with other descriptions.
+  #
+  # some more stuff
+  #
   # @param [Timestamp] test_time a test Timestamp argument
   # @return [Hash] a hash including the given argument
   def self.test_command_arg_timestamp(test_time)

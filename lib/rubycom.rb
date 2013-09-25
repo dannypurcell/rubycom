@@ -37,6 +37,7 @@ module Rubycom
     }.flatten.reduce(&:|)
   end
 
+  ##
   # Looks up the command specified in the first arg and executes with the rest of the args
   #
   # @param [Module] base the module which invoked 'include Rubycom'
