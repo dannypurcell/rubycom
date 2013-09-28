@@ -7,6 +7,7 @@ module Rubycom
         YARD::Registry.clear
         YARD.parse_string(module_source.to_s)
         doc_obj = YARD::Registry.at(module_name.to_s)
+        return {} if doc_obj.nil?
         {
             module_name: doc_obj.name,
             type: doc_obj.type,
@@ -28,8 +29,10 @@ module Rubycom
           YARD::Registry.clear
           YARD.parse_string(module_source_obj.to_s)
           doc_obj = YARD::Registry.at(method_name.to_s)
+          doc_obj = YARD::Registry.at("::#{method_name.to_s}") if doc_obj.nil?
+          raise "No such method #{method_name} in the given source." if doc_obj.nil?
         else
-          raise "module_source_obj must be a String or YARD::CodeObjects::MethodObject"
+          raise "module_source_obj expected String or YARD::CodeObjects::MethodObject but was #{module_source_obj.class}"
         end
          {
             title: doc_obj.title,
@@ -46,7 +49,9 @@ module Rubycom
               {
                   param_name: k,
                   required: v.nil?,
-                  default: (v.nil?)? nil : eval(v)
+                  default: (v.nil?)? nil : eval(v),
+                  doc_type: doc_obj.tags.select{|tag|tag.name == k.to_s}.map{|tag| tag.types }.join(','),
+                  doc: doc_obj.tags.select{|tag|tag.name == k.to_s}.map{|tag| tag.text}.join("\n")
               }
             },
             short_doc: doc_obj.base_docstring.summary,

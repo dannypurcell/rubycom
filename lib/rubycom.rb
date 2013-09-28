@@ -1,6 +1,8 @@
 require "#{File.dirname(__FILE__)}/rubycom/arguments.rb"
+require "#{File.dirname(__FILE__)}/rubycom/cli.rb"
 require "#{File.dirname(__FILE__)}/rubycom/commands.rb"
 require "#{File.dirname(__FILE__)}/rubycom/documentation.rb"
+require "#{File.dirname(__FILE__)}/rubycom/sources.rb"
 require "#{File.dirname(__FILE__)}/rubycom/version.rb"
 
 require 'yaml'
@@ -30,9 +32,9 @@ module Rubycom
   #
   # @param [String] base_file_path the path to the including module's source file
   def self.is_executed_by_gem?(base_file_path)
-    Gem.loaded_specs.map{|k,s|
+    Gem.loaded_specs.map { |k, s|
       {k => {name: "#{s.name}-#{s.version}", executables: s.executables}}
-    }.reduce(&:merge).map{|k,s|
+    }.reduce(&:merge).map { |k, s|
       base_file_path.include?(s[:name]) && s[:executables].include?(File.basename(base_file_path))
     }.flatten.reduce(&:|)
   end
@@ -43,11 +45,11 @@ module Rubycom
   # @param [Module] base the module which invoked 'include Rubycom'
   # @param [Array] args a String Array representing the command to run followed by arguments to be passed
   def self.run(base, args=[])
+    command = args[0] || nil
+    arguments = args[1..-1] || []
+    default_options = []
     begin
       raise CLIError, "Invalid base class invocation: #{base}" if base.nil?
-      command = args[0] || nil
-      arguments = args[1..-1] || []
-
       case command
         when 'register_completions'
           puts self.register_completions(base)
@@ -119,7 +121,13 @@ module Rubycom
 
     rescue CLIError => e
       $stderr.puts e
-      $stderr.puts Documentation.get_summary(base)
+      $stderr.puts CLI.module(
+                       base.to_s,
+                       Rubycom::Documentation.module(base.to_s, Rubycom::Sources.module_source(base))[:short_doc],
+                       Rubycom::Documentation.map_docs(Rubycom::Sources.map_sources(base, Rubycom::Commands.get_top_level_commands(base))),
+                       default_options,
+                       arguments
+                   )[:out]
     end
   end
 
@@ -133,15 +141,29 @@ module Rubycom
     arguments = [] if arguments.nil?
     raise CLIError, 'No command specified.' if command.nil? || command.length == 0
     begin
-      raise CLIError, "Invalid Command: #{command}" unless Commands.get_top_level_commands(base).include? command.to_sym
-      if base.included_modules.map { |mod| mod.name.to_sym }.include?(command.to_sym)
-        self.run_command(eval(command), arguments[0], arguments[1..-1])
-      else
-        self.call_method(base, command, arguments)
+      matched = Commands.get_top_level_commands(base).select{|cmd_sym, _| cmd_sym == command.to_sym }
+      raise CLIError, "Invalid Command: #{command} for #{base}" if matched.nil? || matched.empty?
+      raise CLIError, "Ambiguous command name #{command} for #{base}. Matches: #{matched}" if matched.class == Array && matched.length > 1
+      matched = matched.first if matched.class == Array && matched.length == 1
+
+      case matched[:type]
+        when :module
+          self.run_command(eval(command), arguments[0], arguments[1..-1])
+        when :command
+          self.call_method(base, command, arguments)
+        else
+          raise "CommandError: Unrecognized command type #{matched[:type]} for #{matched}"
       end
+
     rescue CLIError => e
       $stderr.puts e
-      $stderr.puts Documentation.get_command_usage(base, command, arguments)
+      $stderr.puts CLI.module(
+                       base.to_s,
+                       Rubycom::Documentation.module(base.to_s, Rubycom::Sources.module_source(base))[:short_doc],
+                       Rubycom::Documentation.map_docs(Rubycom::Sources.map_sources(base, Rubycom::Commands.get_top_level_commands(base))),
+                       default_options,
+                       arguments
+                   )[:out]
     end
   end
 
