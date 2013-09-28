@@ -8,16 +8,21 @@ module Rubycom
     # @return [Hash] a Hash of Symbols representing the command methods in the given base and it's included modules (if all=true)
     def self.get_commands(base, all=true)
       return {} if base.nil? || !base.respond_to?(:singleton_methods) || !base.respond_to?(:included_modules)
-      {
-          base.name.to_sym => {
-              commands: base.singleton_methods(true).select { |sym| ![:included, :extended].include?(sym) },
-              inclusions: base.included_modules.select { |mod|
-                ![:Rubycom].include?(mod.name.to_sym)
-              }.map { |mod|
-                all ? self.get_commands(mod) : mod.name.to_sym
-              }
-          }
-      }
+      base.singleton_methods(true).select { |sym| ![:included, :extended].include?(sym) }.map { |sym|
+        {
+            sym => {
+                type: :command
+            }
+        }
+      }.reduce({}) { |acc, n| acc.merge(n||{}) || {} }.merge(
+          base.included_modules.select { |mod| ![:Rubycom].include?(mod.name.to_sym) }.map { |sym|
+            {
+                sym => {
+                    type: :module,
+                }.merge(all ? {commands: self.get_commands(Kernel.const_get(sym.to_s.to_sym), all)} : {})
+            }
+          }.reduce(&:merge) || {}
+      )
     end
 
     # Discovers the commands specified in the given base without considering the commands contained in sub-modules
@@ -26,10 +31,21 @@ module Rubycom
     # @return [Array] a list of command name symbols which are defined in the given Module
     def self.get_top_level_commands(base)
       return {} if base.nil? || !base.respond_to?(:singleton_methods) || !base.respond_to?(:included_modules)
-      excluded_commands = [:included, :extended]
-      excluded_modules = [:Rubycom]
-      base.singleton_methods(true).select { |sym| !excluded_commands.include?(sym) } +
-          base.included_modules.select { |mod| !excluded_modules.include?(mod.name.to_sym) }.map { |mod| mod.name.to_sym }.flatten
+      base.singleton_methods(true).select { |sym| ![:included, :extended].include?(sym) }.map { |sym|
+        {
+            sym => {
+                type: :command
+            }
+        }
+      }.reduce(&:merge).merge(
+          base.included_modules.select { |mod| ![:Rubycom].include?(mod.name.to_sym) }.map { |sym|
+            {
+                sym.to_s.to_sym => {
+                    type: :module
+                }
+            }
+          }.reduce(&:merge)
+      )
     end
 
     # Discovers the commands specified in the given base and included Modules
