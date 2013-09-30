@@ -1,7 +1,7 @@
 require "#{File.expand_path(File.dirname(__FILE__))}/../../lib/rubycom.rb"
 # A command module used for testing
 #
-#some stuff
+#This module contains most of the test case input methods.
 module UtilTestModule
 
   # A test non-command method

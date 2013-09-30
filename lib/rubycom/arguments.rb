@@ -14,16 +14,16 @@ module Rubycom
     # @param [Array] arguments an Array of Strings representing the arguments to be parsed
     # @return [Hash] a Hash mapping the defined parameters to their matching argument values
     def self.resolve(parameters={}, arguments=[])
-      raise CLIError, 'parameters may not be nil' if parameters.nil?
-      raise CLIError, 'arguments may not be nil' if arguments.nil?
+      raise RubycomError, 'parameters may not be nil' if parameters.nil?
+      raise RubycomError, 'arguments may not be nil' if arguments.nil?
       parsed_args = self.parse_args(arguments)
 
       args = parsed_args[:rubycom_non_opt_arg] || []
       options = parsed_args.select{|key,_| key != :rubycom_non_opt_arg } || {}
       parsed_arg_count = args.length + options.length
       types = parameters.values.group_by { |hsh| hsh[:type] }.map { |type, defs_arr| Hash[type, defs_arr.length] }.reduce(&:merge) || {}
-      raise CLIError, "Wrong number of arguments. Expected at least #{types[:req]}, received #{parsed_arg_count}" if parsed_arg_count < (types[:req]||0)
-      raise CLIError, "Wrong number of arguments. Expected at most #{(types[:req]||0) + (types[:opt]||0)}, received #{parsed_arg_count}" if types[:rest].nil? && (parsed_arg_count > ((types[:req]||0) + (types[:opt]||0)))
+      raise RubycomError, "Wrong number of arguments. Expected at least #{types[:req]}, received #{parsed_arg_count}" if parsed_arg_count < (types[:req]||0)
+      raise RubycomError, "Wrong number of arguments. Expected at most #{(types[:req]||0) + (types[:opt]||0)}, received #{parsed_arg_count}" if types[:rest].nil? && (parsed_arg_count > ((types[:req]||0) + (types[:opt]||0)))
 
       self.merge_params(parameters, parsed_args)
     end
@@ -41,7 +41,7 @@ module Rubycom
     def self.merge_params(parameters={}, parsed_args={})
       parameters.map { |param_sym, def_hash|
         if def_hash[:type] == :req
-          raise CLIError, "No argument available for #{param_sym}" if parsed_args[:rubycom_non_opt_arg].nil? || parsed_args[:rubycom_non_opt_arg].length == 0
+          raise RubycomError, "No argument available for #{param_sym}" if parsed_args[:rubycom_non_opt_arg].nil? || parsed_args[:rubycom_non_opt_arg].length == 0
           Hash[param_sym, parsed_args[:rubycom_non_opt_arg].shift]
         elsif def_hash[:type] == :opt
           if parsed_args[param_sym].nil?
@@ -75,7 +75,7 @@ module Rubycom
     def self.parse_arg(arg)
       return Hash[:rubycom_non_opt_arg, nil] if arg.nil?
       if arg.is_a?(String) && ((arg.match(/^[-]{3,}\w+/) != nil) || ((arg.match(/^[-]{1,}\w+/) == nil) && (arg.match(/^\w+=/) != nil)))
-        raise CLIError, "Improper option specification, options must start with one or two dashes. Received: #{arg}"
+        raise RubycomError, "Improper option specification, options must start with one or two dashes. Received: #{arg}"
       elsif arg.is_a?(String) && arg.match(/^(-|--)\w+[=|\s]{1}/) != nil
         k, v = arg.partition(/^(-|--)\w+[=|\s]{1}/).select { |part|
           !part.empty?
@@ -111,7 +111,7 @@ module Rubycom
     # @param [Method] method the Method who's parameter hash should be built
     # @return [Hash] a Hash representing the given Method's parameters
     def self.get_param_definitions(method)
-      raise CLIError, 'method must be an instance of the Method class' unless method.class == Method
+      raise RubycomError, 'method must be an instance of the Method class' unless method.class == Method
       method.parameters.map { |param|
         param[1].to_s
       }.map { |param_name|

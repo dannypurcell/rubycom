@@ -13,7 +13,7 @@ require 'yaml'
 # If a Method match can not be made, Rubycom will print help instead by parsing source comments from the including
 # module or it's included modules.
 module Rubycom
-  class CLIError < StandardError;
+  class RubycomError < StandardError;
   end
 
   # Detects that Rubycom was included in another module and calls Rubycom#run
@@ -34,7 +34,7 @@ module Rubycom
   def self.is_executed_by_gem?(base_file_path)
     Gem.loaded_specs.map { |k, s|
       {k => {name: "#{s.name}-#{s.version}", executables: s.executables}}
-    }.reduce(&:merge).map { |k, s|
+    }.reduce({}, &:merge).map { |k, s|
       base_file_path.include?(s[:name]) && s[:executables].include?(File.basename(base_file_path))
     }.flatten.reduce(&:|)
   end
@@ -45,29 +45,37 @@ module Rubycom
   # @param [Module] base the module which invoked 'include Rubycom'
   # @param [Array] args a String Array representing the command to run followed by arguments to be passed
   def self.run(base, args=[])
-    command = args[0] || nil
-    arguments = args[1..-1] || []
-    default_options = []
     begin
-      raise CLIError, "Invalid base class invocation: #{base}" if base.nil?
+      arguments = args || []
+      default_commands = {
+          help: "display this message",
+          tab_complete: "print a list of possible matches for a given word",
+          register_completions: "setup bash tab completion"
+      }
+      default_options = {
+          help: "display this message"
+      }
+      cli = CLI.module(
+          File.basename($0, ".rb"),
+          Rubycom::Documentation.module(base.to_s, Rubycom::Sources.module_source(base))[:full_doc],
+          Rubycom::Documentation.map_docs(
+              Rubycom::Sources.map_sources(base, Rubycom::Commands.get_top_level_commands(base))
+          ).merge(default_commands),
+          default_options,
+          arguments
+      )
+      command = cli[:args][0]
+
+      raise RubycomError, "Invalid base class invocation: #{base}" if base.nil?
+      raise RubycomError, 'No command specified.' if command.nil? || command.length == 0
       case command
         when 'register_completions'
           puts self.register_completions(base)
         when 'tab_complete'
           puts self.tab_complete(base, args)
         when 'help'
-          help_topic = arguments[0]
-          if help_topic.nil?
-            usage = Documentation.get_usage(base)
-            default_usage = Documentation.get_default_commands_usage
-            puts usage
-            puts default_usage
-            return usage+"\n"+default_usage
-          elsif help_topic == 'job'
-            usage = Documentation.get_job_usage(base)
-            puts usage
-            return usage
-          elsif help_topic == 'register_completions'
+          help_topic = cli[:args][1]
+          if help_topic == 'register_completions'
             usage = Documentation.get_register_completions_usage(base)
             puts usage
             return usage
@@ -76,58 +84,21 @@ module Rubycom
             puts usage
             return usage
           else
-            cmd_usage = Documentation.get_command_usage(base, help_topic, arguments[1..-1])
+            cmd_usage = self.run_command(base, args, true)
             puts cmd_usage
             return cmd_usage
           end
-        when 'job'
-          begin
-            raise CLIError, 'No job specified' if arguments[0].nil? || arguments[0].empty?
-            job_hash = YAML.load_file(arguments[0])
-            job_hash = {} if job_hash.nil?
-            STDOUT.sync = true
-            if arguments.delete('-test') || arguments.delete('--test')
-              puts "[Test Job #{arguments[0]}]"
-              job_hash['steps'].each { |step, step_hash|
-                step = "[Step: #{step}/#{job_hash['steps'].length}]"
-                context = step_hash.select { |key| key!="cmd" }.map { |key, val| "[#{key}: #{val}]" }.join(' ')
-                env = job_hash['env'] || {}
-                env.each { |key, val| step_hash['cmd'].gsub!("env[#{key}]", "#{((val.class == String)&&(val.match(/\w+/))) ? "\"#{val}\"" : val}") }
-                cmd = "[cmd: #{step_hash['cmd']}]"
-                puts "#{[step, context, cmd].join(' ')}"
-              }
-            else
-              puts "[Job #{arguments[0]}]"
-              job_hash['steps'].each { |step, step_hash|
-                step = "[Step: #{step}/#{job_hash['steps'].length}]"
-                context = step_hash.select { |key| key!="cmd" }.map { |key, val| "[#{key}: #{val}]" }.join(' ')
-                env = job_hash['env'] || {}
-                env.each { |key, val| step_hash['cmd'].gsub!("env[#{key}]", "#{((val.class == String)&&(val.match(/\w+/))) ? "\"#{val}\"" : val}") }
-                cmd = "[cmd: #{step_hash['cmd']}]"
-                puts "#{[step, context, cmd].join(' ')}"
-                system(step_hash['cmd'])
-              }
-            end
-          rescue CLIError => e
-            $stderr.puts e
-          end
         else
-          output = self.run_command(base, command, arguments)
+          help_mode = !cli[:opts][:help].nil?
+          output = self.run_command(base, args, help_mode)
           std_output = nil
           std_output = output.to_yaml unless [String, NilClass, TrueClass, FalseClass, Fixnum, Float, Symbol].include?(output.class)
           puts std_output || output
           return output
       end
-
-    rescue CLIError => e
+    rescue RubycomError => e
       $stderr.puts e
-      $stderr.puts CLI.module(
-                       base.to_s,
-                       Rubycom::Documentation.module(base.to_s, Rubycom::Sources.module_source(base))[:short_doc],
-                       Rubycom::Documentation.map_docs(Rubycom::Sources.map_sources(base, Rubycom::Commands.get_top_level_commands(base))),
-                       default_options,
-                       arguments
-                   )[:out]
+      $stderr.puts cli[:out]
     end
   end
 
@@ -135,35 +106,39 @@ module Rubycom
   # is performed until a Method is found in the specified arguments.
   #
   # @param [Module] base the module which invoked 'include Rubycom'
-  # @param [String] command the name of the command to call, may be a Module name or a Method
-  # @param [Array] arguments a String Array representing the arguments for the given command
-  def self.run_command(base, command, arguments=[])
-    arguments = [] if arguments.nil?
-    raise CLIError, 'No command specified.' if command.nil? || command.length == 0
+  # @param [Array] arguments a String Array representing the remaining arguments
+  def self.run_command(base, arguments=[], help_mode=false)
     begin
-      matched = Commands.get_top_level_commands(base).select{|cmd_sym, _| cmd_sym == command.to_sym }
-      raise CLIError, "Invalid Command: #{command} for #{base}" if matched.nil? || matched.empty?
-      raise CLIError, "Ambiguous command name #{command} for #{base}. Matches: #{matched}" if matched.class == Array && matched.length > 1
-      matched = matched.first if matched.class == Array && matched.length == 1
+      mod_cli = CLI.module(
+          base.to_s,
+          Rubycom::Documentation.module(base.to_s, Rubycom::Sources.module_source(base))[:full_doc],
+          Rubycom::Documentation.map_docs(Rubycom::Sources.map_sources(base, Rubycom::Commands.get_top_level_commands(base))),
+          {},
+          arguments
+      )
+      command = mod_cli[:args].shift
 
-      case matched[:type]
-        when :module
-          self.run_command(eval(command), arguments[0], arguments[1..-1])
-        when :command
-          self.call_method(base, command, arguments)
-        else
-          raise "CommandError: Unrecognized command type #{matched[:type]} for #{matched}"
+      if help_mode && (command.nil? || command.length == 0)
+        return mod_cli[:out]
       end
 
-    rescue CLIError => e
+      raise RubycomError, 'No command specified.' if command.nil? || command.length == 0
+      matched = Commands.get_top_level_commands(base).select{|cmd_sym, _| cmd_sym == command.to_sym }
+      raise RubycomError, "Invalid Command: #{command} for #{base}" if matched.nil? || matched.empty?
+      raise RubycomError, "Ambiguous command name #{command} for #{base}. Matches: #{matched}" if matched.class == Array && matched.length > 1
+      matched = matched.first if matched.class == Array && matched.length == 1
+
+      case matched[command.to_sym][:type]
+        when :module
+          self.run_command(eval(command), mod_cli[:args], help_mode)
+        when :command
+          self.call_method(base, command, mod_cli[:args], help_mode)
+        else
+          raise "CommandError: Unrecognized command type #{matched[command.to_sym][:type]} for #{matched}"
+      end
+    rescue RubycomError => e
       $stderr.puts e
-      $stderr.puts CLI.module(
-                       base.to_s,
-                       Rubycom::Documentation.module(base.to_s, Rubycom::Sources.module_source(base))[:short_doc],
-                       Rubycom::Documentation.map_docs(Rubycom::Sources.map_sources(base, Rubycom::Commands.get_top_level_commands(base))),
-                       default_options,
-                       arguments
-                   )[:out]
+      $stderr.puts mod_cli[:out]
     end
   end
 
@@ -173,11 +148,23 @@ module Rubycom
   # @param [String] command the name of the Method to call
   # @param [Array] arguments a String Array representing the arguments for the given command
   # @return the result of the specified Method call
-  def self.call_method(base, command, arguments=[])
+  def self.call_method(base, command, arguments=[], help_mode=false)
     method = base.public_method(command.to_sym)
-    raise CLIError, "No public method found for symbol: #{command.to_sym}" if method.nil?
+    raise RubycomError, "No public method found for symbol: #{command.to_sym}" if method.nil?
+
+    com_cli = CLI.command(
+        method.name,
+        Rubycom::Documentation.command(method.name, Rubycom::Sources.method_source(method))[:full_doc],
+        {},
+        arguments
+    )
+
+    if help_mode
+      return com_cli[:out]
+    end
+
     param_defs = Arguments.get_param_definitions(method)
-    args = Arguments.resolve(param_defs, arguments)
+    args = Arguments.resolve(param_defs, com_cli[:opts])
     flatten = false
     params = method.parameters.map { |arr| flatten = true if arr[0]==:rest; args[arr[1]] }
     if flatten

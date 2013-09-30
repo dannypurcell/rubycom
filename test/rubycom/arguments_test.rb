@@ -187,7 +187,7 @@ class ArgumentsTest < Test::Unit::TestCase
     arguments = ["123"]
     expected = nil
     result = nil
-    assert_raise Rubycom::CLIError do
+    assert_raise Rubycom::RubycomError do
       result = Rubycom::Arguments.resolve(params, arguments)
     end
     assert_equal(expected, result)
@@ -199,7 +199,7 @@ class ArgumentsTest < Test::Unit::TestCase
     arguments = []
     expected = nil
     result = nil
-    assert_raise Rubycom::CLIError do
+    assert_raise Rubycom::RubycomError do
       result = Rubycom::Arguments.resolve(params, arguments)
     end
     assert_equal(expected, result)
