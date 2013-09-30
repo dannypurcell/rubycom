@@ -21,7 +21,7 @@ module Rubycom
                     type: :module,
                 }.merge(all ? {commands: self.get_commands(Kernel.const_get(sym.to_s.to_sym), all)} : {})
             }
-          }.reduce(&:merge) || {}
+          }.reduce({}, &:merge) || {}
       )
     end
 
@@ -37,14 +37,14 @@ module Rubycom
                 type: :command
             }
         }
-      }.reduce(&:merge).merge(
+      }.reduce({}, &:merge).merge(
           base.included_modules.select { |mod| ![:Rubycom].include?(mod.name.to_sym) }.map { |sym|
             {
                 sym.to_s.to_sym => {
                     type: :module
                 }
             }
-          }.reduce(&:merge)
+          }.reduce({}, &:merge)
       )
     end
 
@@ -60,7 +60,7 @@ module Rubycom
       }].merge(
           base.included_modules.select { |mod| !excluded_modules.include?(mod.name.to_sym) }.map { |mod|
             self.index_commands(mod)
-          }.reduce(&:merge) || {}
+          }.reduce({}, &:merge)
       )
     end
 
