@@ -1,6 +1,6 @@
 require "#{File.dirname(__FILE__)}/rubycom/arguments.rb"
 require "#{File.dirname(__FILE__)}/rubycom/cli.rb"
-require "#{File.dirname(__FILE__)}/rubycom/commands.rb"
+require "#{File.dirname(__FILE__)}/rubycom/singleton_commands.rb"
 require "#{File.dirname(__FILE__)}/rubycom/documentation.rb"
 require "#{File.dirname(__FILE__)}/rubycom/sources.rb"
 require "#{File.dirname(__FILE__)}/rubycom/version.rb"
@@ -52,14 +52,14 @@ module Rubycom
           tab_complete: "print a list of possible matches for a given word",
           register_completions: "setup bash tab completion"
       }
-      default_options = {
-          help: "display this message"
-      }
+      default_options = [
+          CLI.opt('help', 'Display documentation', 'h')
+      ]
       cli = CLI.module(
           File.basename($0, ".rb"),
           Rubycom::Documentation.module(base.to_s, Rubycom::Sources.module_source(base))[:full_doc],
           Rubycom::Documentation.map_docs(
-              Rubycom::Sources.map_sources(base, Rubycom::Commands.get_top_level_commands(base))
+              Rubycom::Sources.map_sources(base, Rubycom::Sources.get_top_level_commands(base))
           ).merge(default_commands),
           default_options,
           arguments
@@ -72,7 +72,7 @@ module Rubycom
         when 'register_completions'
           puts self.register_completions(base)
         when 'tab_complete'
-          puts self.tab_complete(base, args)
+          puts self.tab_complete(base, args, :Rubycom::SingletonCommands)
         when 'help'
           help_topic = cli[:args][1]
           if help_topic == 'register_completions'
@@ -102,6 +102,45 @@ module Rubycom
     end
   end
 
+  def self.run_steps(base, *args, plugins_options={})
+    plugins = self.load_plugins(
+        {
+            arguments: Rubycom::ArgParse,
+            discover: Rubycom::SingletonCommands,
+            source: Rubycom::Sources,
+            executor: Rubycom::Executor,
+            documentation: Rubycom::YardDoc,
+            pre_process: Rubycom::PreProcess,
+            post_process: Rubycom::PostProcess,
+            cli: Rubycom::CLI,
+            error: Rubycom::ErrorHandler,
+        }.merge(plugins_options)
+    )
+
+    parsed_args = plugins[:arguments].parse(args)
+    commands = plugins[:discover].discover_commands(base)
+    sourced_commands = plugins[:source].source_commands(commands)
+    documented_commands = plugins[:documentation].merge_documentation(sourced_commands)
+    processed_input = plugins[:pre_process].pre_process(base, parsed_args, documented_commands)
+    begin
+      command_result = plugins[:executor].execute_command(processed_input)
+    rescue RubycomError => e
+      cli_output = plugins[:cli].build_cli(processed_input)
+      plugins[:error].handle_error(e, cli_output)
+    end
+    $stdout.puts plugins[:post_process].post_process(command_result)
+  end
+
+  def self.load_plugins(plugins=default_plugins)
+    plugins.map { |name, plugin|
+      {
+          name => plugin.is_a?(Module) ? plugin : plugin.to_s.split('::').reduce(Kernel){|mod, next_mod|
+            mod.const_get(next_mod.to_s.to_sym)
+          }
+      }
+    }.reduce({}, &:merge)
+  end
+
   # Handles the method call according to the given arguments. If the specified command is a Module then a recursive search
   # is performed until a Method is found in the specified arguments.
   #
@@ -112,18 +151,18 @@ module Rubycom
       mod_cli = CLI.module(
           base.to_s,
           Rubycom::Documentation.module(base.to_s, Rubycom::Sources.module_source(base))[:full_doc],
-          Rubycom::Documentation.map_docs(Rubycom::Sources.map_sources(base, Rubycom::Commands.get_top_level_commands(base))),
+          Rubycom::Documentation.map_docs(Rubycom::Sources.map_sources(base, Rubycom::Sources.get_top_level_commands(base))),
           {},
           arguments
       )
       command = mod_cli[:args].shift
-
+      puts "in run_command #{base},#{arguments},#{help_mode}: mod_cli = #{mod_cli.to_yaml}"
       if help_mode && (command.nil? || command.length == 0)
         return mod_cli[:out]
       end
 
       raise RubycomError, 'No command specified.' if command.nil? || command.length == 0
-      matched = Commands.get_top_level_commands(base).select{|cmd_sym, _| cmd_sym == command.to_sym }
+      matched = Sources.get_top_level_commands(base).select { |cmd_sym, _| cmd_sym == command.to_sym }
       raise RubycomError, "Invalid Command: #{command} for #{base}" if matched.nil? || matched.empty?
       raise RubycomError, "Ambiguous command name #{command} for #{base}. Matches: #{matched}" if matched.class == Array && matched.length > 1
       matched = matched.first if matched.class == Array && matched.length == 1
@@ -152,30 +191,41 @@ module Rubycom
     method = base.public_method(command.to_sym)
     raise RubycomError, "No public method found for symbol: #{command.to_sym}" if method.nil?
 
-    com_cli = CLI.command(
-        method.name,
-        Rubycom::Documentation.command(method.name, Rubycom::Sources.method_source(method))[:full_doc],
-        {},
-        arguments
-    )
+    begin
+      com_cli = CLI.command(
+          method.name,
+          Rubycom::Documentation.command(method.name, Rubycom::Sources.method_source(method))[:full_doc],
+          {
+              taco: {
+                  type: :String,
+                  doc: "yum",
+                  default: "Tacos are delicious!"
+              }
+          },
+          arguments
+      )
 
-    if help_mode
-      return com_cli[:out]
-    end
-
-    param_defs = Arguments.get_param_definitions(method)
-    args = Arguments.resolve(param_defs, com_cli[:opts])
-    flatten = false
-    params = method.parameters.map { |arr| flatten = true if arr[0]==:rest; args[arr[1]] }
-    if flatten
-      rest_arr = params.delete_at(-1)
-      if rest_arr.respond_to?(:each)
-        rest_arr.each { |arg| params << arg }
-      else
-        params << rest_arr
+      if help_mode
+        return com_cli[:out]
       end
+      puts "in run_command #{base},#{command},#{arguments},#{help_mode}: com_cli = #{com_cli.to_yaml}"
+      param_defs = Arguments.get_param_definitions(method)
+      args = Arguments.resolve(param_defs, com_cli[:args], com_cli[:opts])
+      flatten = false
+      params = method.parameters.map { |arr| flatten = true if arr[0]==:rest; args[arr[1]] }
+      if flatten
+        rest_arr = params.delete_at(-1)
+        if rest_arr.respond_to?(:each)
+          rest_arr.each { |arg| params << arg }
+        else
+          params << rest_arr
+        end
+      end
+      (arguments.nil? || arguments.empty?) ? method.call : method.call(*params)
+    rescue RubycomError, Rubycom::CLI::CLIError => e
+      $stderr.puts e
+      $stderr.puts com_cli[:out]
     end
-    (arguments.nil? || arguments.empty?) ? method.call : method.call(*params)
   end
 
   # Inserts a tab completion into the current user's .bash_profile with a command entry to register the function for
@@ -210,21 +260,23 @@ module Rubycom
   #
   # @param [Module] base the module which invoked 'include Rubycom'
   # @param [Array] arguments a String Array representing the arguments to be matched
+  # @param [Symbol]
   # @return [Array] a String Array including the possible matches for the given arguments
-  def self.tab_complete(base, arguments)
+  def self.tab_complete(base, arguments, command_plugin)
+    plugin = (command_plugin.class == Module)? command_plugin : self.get_plugin(command_plugin)
     arguments = [] if arguments.nil?
     args = (arguments.include?("tab_complete")) ? arguments[2..-1] : arguments
     matches = ['']
     if args.nil? || args.empty?
-      matches = Rubycom::Commands.get_top_level_commands(base).map { |sym| sym.to_s }
+      matches = plugin.get_top_level_commands(base).map { |sym| sym.to_s }
     elsif args.length == 1
-      matches = Rubycom::Commands.get_top_level_commands(base).map { |sym| sym.to_s }.select { |word| !word.match(/^#{args[0]}/).nil? }
+      matches = plugin.get_top_level_commands(base).map { |sym| sym.to_s }.select { |word| !word.match(/^#{args[0]}/).nil? }
       if matches.size == 1 && matches[0] == args[0]
-        matches = self.tab_complete(Kernel.const_get(args[0].to_sym), args[1..-1])
+        matches = self.tab_complete(Kernel.const_get(args[0].to_sym), args[1..-1], plugin)
       end
     elsif args.length > 1
       begin
-        matches = self.tab_complete(Kernel.const_get(args[0].to_sym), args[1..-1])
+        matches = self.tab_complete(Kernel.const_get(args[0].to_sym), args[1..-1], plugin)
       rescue Exception
         matches = ['']
       end

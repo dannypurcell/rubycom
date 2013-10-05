@@ -1,4 +1,4 @@
-require "#{File.dirname(__FILE__)}/commands.rb"
+require "#{File.dirname(__FILE__)}/singleton_commands.rb"
 
 module Rubycom
   module Documentation
