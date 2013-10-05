@@ -2,6 +2,19 @@ module Rubycom
   module Sources
     require 'method_source'
 
+    def self.check(commands)
+      raise "commands should be a Hash but was #{commands.class}" unless commands.class == Hash
+      commands.each{|sym, cmd|
+        raise "command key should be a Symbol but was #{sym.class}" unless sym.class == Symbol
+        raise "command value should be a Hash" unless cmd.class == Hash
+        raise "command value should have key :type" unless cmd.has_key?(:type)
+      }
+    end
+
+    def self.source_commands(commands)
+
+    end
+
     def self.map_sources(base, commands_hsh)
       commands_hsh.map { |com_sym, hsh|
         case hsh[:type]
