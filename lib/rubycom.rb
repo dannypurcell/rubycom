@@ -72,7 +72,7 @@ module Rubycom
         when 'register_completions'
           puts self.register_completions(base)
         when 'tab_complete'
-          puts self.tab_complete(base, args, :Rubycom::SingletonCommands)
+          puts self.tab_complete(base, args, Rubycom::SingletonCommands)
         when 'help'
           help_topic = cli[:args][1]
           if help_topic == 'register_completions'

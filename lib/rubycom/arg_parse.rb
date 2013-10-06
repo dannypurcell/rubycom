@@ -3,81 +3,138 @@ require 'yaml'
 
 module Rubycom
   module ArgParse
+
+    class ArgParseError < StandardError;
+    end
+
     class ArgParser < Parslet::Parser
-      rule(:space)             { match('\s').repeat(1) }
-      rule(:space?)            { space.maybe }
+      rule(:space) { match('\s').repeat(1) }
+      rule(:eq) { match('=') }
+      rule(:separator) { (eq | (space >> eq >> space) | space) }
 
-      rule(:word)              { match('\w').repeat(1) >> space? }
+      rule(:word) { match('\w').repeat(1) }
+      rule(:list) { word >> (match(',') >> word).repeat(1) }
 
-      rule(:short_opt)         { match('-') >> word }
-      rule(:negated_short_opt) { match('-no-') >> word }
-      rule(:long_opt)          { match('--') >> word }
-      rule(:negated_long_opt)  { match('--no-') >> word }
+      rule(:short) { match('-') }
+      rule(:long) { short >> short }
+      rule(:neg_opt_prefix) { (long | short) >> (str('no-') | str('NO-')) >> word }
+      rule(:opt_prefix) { (long | short) >> word }
 
-      rule(:expression)        { word | short_opt | negated_short_opt | long_opt | negated_long_opt }
+      rule(:arg) { word >> space }
+      rule(:opt) { opt_prefix >> separator >> (list | word) >> space }
+      rule(:flag) { (neg_opt_prefix | opt_prefix) >> space }
+
+      rule(:expression) { (arg.as(:arg) | opt.as(:opt) | flag.as(:flag)).repeat }
 
       root :expression
     end
 
     def self.parse(*args)
       args = self.check(args)
-      arg_string = args.join(' ')
+      arg_string = args.join(' ') << ' '
       begin
-        ArgParser.new.parse(arg_string)
+        self.validate(
+            self.organize(
+                self.clean(
+                    ArgParser.new.parse(arg_string)
+                )
+            )
+        )
       rescue Parslet::ParseFailed => failure
         puts failure.cause.ascii_tree
       end
     end
 
     def self.check(*args)
-      raise "args should be an array of Strings" if args.map{|arg|arg.class}.uniq.length > 1
+      raise "args should be an array of Strings" if args.map { |arg| arg.class }.uniq.length > 1
       args
     end
 
-    def self.parse_args(arguments)
-      arguments.map { |arg|
-        self.parse_arg(arg)
-      }.group_by { |hsh|
+    def self.clean(parsed_result)
+      parsed_result.group_by { |hsh|
         hsh.keys.first
-      }.map { |key, arr|
-        (key == :rubycom_non_opt_arg) ? Hash[key, arr.map { |hsh| hsh.values }.flatten(1)] : Hash[key, arr.map { |hsh| hsh.values.first }.reduce(&:merge)]
-      }.reduce(&:merge) || {}
+      }.map { |type, arr|
+        {
+            type => arr.map { |hsh| hsh.values.first.str.strip }
+        }
+      }.reduce({}, &:merge)
     end
 
-    # Uses YAML.load to parse the given String
-    #
-    # @param [String] arg a String representing the argument to be parsed
-    # @return [Object] the result of parsing the given arg with YAML.load
-    def self.parse_arg(arg)
-      return Hash[:rubycom_non_opt_arg, nil] if arg.nil?
-      if arg.is_a?(String) && ((arg.match(/^[-]{3,}\w+/) != nil) || ((arg.match(/^[-]{1,}\w+/) == nil) && (arg.match(/^\w+=/) != nil)))
-        raise RubycomError, "Improper option specification, options must start with one or two dashes. Received: #{arg}"
-      elsif arg.is_a?(String) && arg.match(/^(-|--)\w+[=|\s]{1}/) != nil
-        k, v = arg.partition(/^(-|--)\w+[=|\s]{1}/).select { |part|
-          !part.empty?
-        }.each_with_index.map { |part, index|
-          if index == 0
-            part.chomp('=').gsub(/^--/, '').gsub(/^-/, '').strip.to_sym
+    def self.organize(clean_parsed_result)
+      clean_parsed_result.map { |type, matches|
+        case type
+          when :opt
+            {
+                "#{type.to_s}s".to_sym => self.organize_options(matches)
+            }
+          when :flag
+            {
+                "#{type.to_s}s".to_sym => self.organize_flags(matches)
+            }
           else
-            if part.start_with?("#") || part.start_with?("!")
-              "#{part}"
-            else
-              (YAML.load(part) rescue "#{part}")
-            end
-          end
-        }
-        Hash[k, v]
-      else
-        begin
-          parsed_arg = "#{arg}"
-          unless arg.start_with?("#") || arg.start_with?("!")
-            parsed_arg = YAML.load("#{arg}")
-          end
-        rescue Exception
-          parsed_arg = "#{arg}"
+            {
+                "#{type.to_s}s".to_sym => matches
+            }
         end
-        Hash[:rubycom_non_opt_arg, parsed_arg]
+      }.reduce({}, &:merge)
+    end
+
+    def self.organize_options(option_matches)
+      option_matches.map { |match_str|
+        key, val = match_str.split(/\s|\=/)
+        {
+            key.reverse.chomp('-').chomp('-').reverse => val
+        }
+      }.group_by { |hsh| hsh.keys.first }.reduce({}) { |acc, nex|
+        k, v = nex
+        acc[k] = v.map { |hsh| hsh.values.first.split(',') }.flatten
+        acc
+      }
+    end
+
+    def self.organize_flags(flag_matches)
+      flag_matches.map { |match_string|
+        self.organize_flag(match_string)
+      }.group_by{|hsh|hsh.keys.first}.map{|sub_type,arr|
+        {
+            sub_type => arr.map{|hsh|
+              hsh.values.first
+            }.flatten
+        }
+      }.reduce({},&:merge)
+    end
+
+    def self.organize_flag(match_string)
+      if match_string.start_with?('--')
+        long_flag = match_string.reverse.chomp('-').chomp('-').reverse
+        long_flag_key = long_flag.sub(/no-|NO-/,'')
+        long_flag_val = (long_flag.start_with?('no-')||long_flag.start_with?('NO-')) ? false : true
+        {
+            longs: {
+                long_flag_key => long_flag_val
+            }
+        }
+      else
+        short_flag = match_string.reverse.chomp('-').reverse
+        short_flag_key = short_flag.sub(/no-|NO-/,'')
+        short_flag_val = (short_flag.start_with?('no-')||short_flag.start_with?('NO-')) ? false : true
+        {
+            shorts: short_flag_key.split(//).map{|k|
+              {
+                  k => short_flag_val
+              }
+            }
+        }
       end
+    end
+
+    def self.validate(organized_result)
+      organized_result[:flags].each{|type,arr|
+        arr.group_by{|hsh|hsh.keys.first}.each{|k,v|
+          raise ArgParseError, "Duplicate #{type.to_s.chomp('s')} flag: #{k} has multiple values #{v}" if v.length > 1
+        }
+      }
+      organized_result
     end
 
   end
