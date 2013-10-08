@@ -10,7 +10,7 @@ require 'test/unit'
 class TestCase < Test::Unit::TestCase
   def test_case
     base = UtilTestModule
-    args = ["test_command_arg_hash"]
+    args = %w(test_command_arg_hash)
     result = Rubycom.run(base, args)
     puts result
   end

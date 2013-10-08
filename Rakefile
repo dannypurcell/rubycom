@@ -11,11 +11,11 @@ task :clean do
 end
 
 task :bundle do
-  system("bundle install")
+  system('bundle install')
 end
 
 Rake::TestTask.new do |t|
-  t.libs << "test"
+  t.libs << 'test'
   t.test_files = FileList['test/*/*_test.rb']
   t.verbose = true
 end
@@ -23,10 +23,10 @@ end
 YARD::Rake::YardocTask.new
 
 task :package => [:clean, :bundle, :test, :yard] do
-  gem_specs = Dir.glob("**/*.gemspec")
+  gem_specs = Dir.glob('**/*.gemspec')
   gem_specs.each { |gem_spec|
     system("gem build #{gem_spec}")
-    raise "Error during build phase" if $?.exitstatus != 0
+    raise 'Error during build phase' if $?.exitstatus != 0
   }
 end
 
@@ -36,12 +36,12 @@ task :install => :package do
 end
 
 task :upgrade => :package do
-  system("gem uninstall rubycom -a")
+  system('gem uninstall rubycom -a')
   load "#{File.expand_path(File.dirname(__FILE__))}/lib/rubycom/version.rb"
   system("gem install #{File.expand_path(File.dirname(__FILE__))}/rubycom-#{Rubycom::VERSION}.gem")
 end
 
-task :version_set, [:version] do |t, args|
+task :version_set, [:version] do |_, args|
   raise "Must provide a version.\n If you called 'rake version_set 1.2.3', try 'rake version_set[1.2.3]'" if args[:version].nil? || args[:version].empty?
 
   version_file = <<-END.gsub(/^ {4}/, '')
@@ -54,17 +54,17 @@ task :version_set, [:version] do |t, args|
     file.write(version_file)
   }
   file_text = File.read("#{File.expand_path(File.dirname(__FILE__))}/lib/rubycom/version.rb")
-  raise "Could not update version file" if file_text != version_file
+  raise 'Could not update version file' if file_text != version_file
 end
 
-task :release, [:version] => [:version_set, :package] do |t, args|
-  system("git clean -f")
-  system("git add .")
+task :release, [:version] => [:version_set, :package] do |_, args|
+  system('git clean -f')
+  system('git add .')
   system("git commit -m\"Version to #{args[:version]}\"")
   if $?.exitstatus == 0
     system("git tag -a v#{args[:version]} -m\"Version #{args[:version]} Release\"")
     if $?.exitstatus == 0
-      system("git push origin master --tags")
+      system('git push origin master --tags')
       if $?.exitstatus == 0
         load "#{File.expand_path(File.dirname(__FILE__))}/lib/rubycom/version.rb"
         system("gem push #{File.expand_path(File.dirname(__FILE__))}/rubycom-#{Rubycom::VERSION}.gem")

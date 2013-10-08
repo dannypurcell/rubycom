@@ -1,12 +1,13 @@
 module Rubycom
   module PreProcess
+    require 'yaml'
 
     def self.check(checked_mod, checked_args, checked_commands)
-
+      [checked_mod, checked_args, checked_commands]
     end
 
     def self.pre_process(checked_mod, checked_args, checked_commands)
-
+      [checked_mod, checked_args, checked_commands]
     end
 
     # Builds a hash mapping parameter names (as symbols) to their
@@ -72,9 +73,8 @@ module Rubycom
     #                                               default:(default_value || :nil_rubycom_required_param)
     #                                              }
     # @param [Array] arguments an Array of Strings representing the arguments to be parsed
-    # @param [Hash] options a
     # @return [Hash] a Hash mapping the defined parameters to their matching argument values
-    def resolve(parameters={}, arguments=[], options={})
+    def resolve(parameters={}, arguments=[])
       raise RubycomError, 'parameters may not be nil' if parameters.nil?
       raise RubycomError, 'arguments may not be nil' if arguments.nil?
       parsed_args = self.parse_args(arguments)

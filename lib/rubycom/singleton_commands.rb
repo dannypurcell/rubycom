@@ -8,10 +8,12 @@ module Rubycom
       return base_module if base_module.class == Module
       return Kernel.const_get(base_module) if base_module.class == Symbol
       return Kernel.const_get(base_module.to_sym) if base_module.class == String
+      base_module
     end
 
     def self.discover_commands(base_module)
-      self.get_top_level_commands(base_module)
+      mod = self.check(base_module)
+      self.get_top_level_commands(mod)
     end
 
     # Discovers the commands specified in the given base without considering the commands contained in sub-modules
