@@ -3,8 +3,8 @@ module Rubycom
     require 'yard'
 
     def self.document_commands(commands_hsh)
-      commands_hsh.map { |base, com_hsh|
-        base = Kernel.const_get(base) if base.class == Symbol
+      commands = self.check(commands_hsh)
+      commands.map { |base, com_hsh|
         {
             base => com_hsh.map{|com_sym,hsh|
               case hsh[:type]
@@ -26,9 +26,13 @@ module Rubycom
 
     def self.check(sourced_commands)
       raise "commands should be a Hash but was #{sourced_commands.class}" unless sourced_commands.class == Hash
-      sourced_commands.each{|base, cmd_hsh|
-        raise "command key should be a Module or Symbol but was #{base.class}" unless base.class == Module || base.class == Symbol
-        raise 'command value should be a Hash' unless cmd_hsh.class == Hash
+      sourced_commands.each{|_, cmd_hsh|
+        raise "commands value should be a Hash but was #{cmd_hsh.class}" unless cmd_hsh.class == Hash
+        cmd_hsh.each{|com_sym,hsh|
+          raise "command key should be a Symbol or String but has #{com_sym}" unless [Symbol,String].include?(com_sym.class)
+          raise "command value should have key :type but has #{hsh.keys}" unless hsh.has_key?(:type)
+          raise "command value should have key :source but has #{hsh.keys}" unless hsh.has_key?(:source)
+        }
       }
       sourced_commands
     end
@@ -46,13 +50,12 @@ module Rubycom
           short_doc: doc_obj.docstring.summary,
           full_doc: doc_obj.docstring.to_s,
           commands: doc_obj.children.map { |doc_method|
-            self.command_doc(doc_method.name, doc_method)
-          },
-          source: doc_obj.source
+            self.command_doc(doc_method.name, doc_method, true)
+          }
       }
     end
 
-    def self.command_doc(method_name, module_source_obj)
+    def self.command_doc(method_name, module_source_obj, summary=false)
       if module_source_obj.class == YARD::CodeObjects::MethodObject
         doc_obj = module_source_obj
       elsif module_source_obj.class == String
@@ -66,38 +69,66 @@ module Rubycom
       else
         raise "module_source_obj expected String or YARD::CodeObjects::MethodObject but was #{module_source_obj.class}"
       end
-      {
-          title: doc_obj.title,
-          name: doc_obj.name,
-          scope: doc_obj.scope,
-          type: doc_obj.type,
-          path: doc_obj.path,
-          signature: doc_obj.signature,
-          visibility: doc_obj.visibility,
-          parameters: doc_obj.parameters.map{|k,v|
-            # YARD's parsing returns pairs of params and values
-            # if the param has a default value then the value is wrapped in a string
-            # required arguments have a value of nil
-            {
-                param_name: k,
-                required: v.nil?,
-                default: (v.nil?)? nil : eval(v),
-                doc_type: doc_obj.tags.select{|tag|tag.name == k.to_s}.map{|tag| tag.types }.join(','),
-                doc: doc_obj.tags.select{|tag|tag.name == k.to_s}.map{|tag| tag.text}.join("\n")
+      if summary
+        {
+            name: doc_obj.name,
+            type: doc_obj.type,
+            parameters: doc_obj.parameters.map{|k,v|
+              # YARD's parsing returns pairs of params and values
+              # if the param has a default value then the value is wrapped in a string
+              # required arguments have a value of nil
+              {
+                  param_name: k,
+                  required: v.nil?,
+                  default: (v.nil?)? nil : eval(v),
+                  doc_type: doc_obj.tags.select{|tag|tag.name == k.to_s}.map{|tag| tag.types }.join(','),
+                  doc: doc_obj.tags.select{|tag|tag.name == k.to_s}.map{|tag| tag.text}.join("\n")
+              }
+            },
+            short_doc: doc_obj.base_docstring.summary,
+            full_doc: doc_obj.base_docstring.to_s,
+            tags: doc_obj.tags.map{|tag|
+              {
+                  tag_name: tag.tag_name,
+                  name: tag.name,
+                  types: tag.types,
+                  text: tag.text
+              }
             }
-          },
-          short_doc: doc_obj.base_docstring.summary,
-          full_doc: doc_obj.base_docstring.to_s,
-          tags: doc_obj.tags.map{|tag|
-            {
-                tag_name: tag.tag_name,
-                name: tag.name,
-                types: tag.types,
-                text: tag.text
+        }
+      else
+        {
+            title: doc_obj.title,
+            name: doc_obj.name,
+            scope: doc_obj.scope,
+            type: doc_obj.type,
+            path: doc_obj.path,
+            signature: doc_obj.signature,
+            visibility: doc_obj.visibility,
+            parameters: doc_obj.parameters.map{|k,v|
+              # YARD's parsing returns pairs of params and values
+              # if the param has a default value then the value is wrapped in a string
+              # required arguments have a value of nil
+              {
+                  param_name: k,
+                  required: v.nil?,
+                  default: (v.nil?)? nil : eval(v),
+                  doc_type: doc_obj.tags.select{|tag|tag.name == k.to_s}.map{|tag| tag.types }.join(','),
+                  doc: doc_obj.tags.select{|tag|tag.name == k.to_s}.map{|tag| tag.text}.join("\n")
+              }
+            },
+            short_doc: doc_obj.base_docstring.summary,
+            full_doc: doc_obj.base_docstring.to_s,
+            tags: doc_obj.tags.map{|tag|
+              {
+                  tag_name: tag.tag_name,
+                  name: tag.name,
+                  types: tag.types,
+                  text: tag.text
+              }
             }
-          },
-          source: doc_obj.source
-      }
+        }
+      end
     end
 
   end

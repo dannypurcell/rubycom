@@ -13,7 +13,7 @@ module Rubycom
 
     def self.discover_commands(base_module)
       mod = self.check(base_module)
-      self.get_top_level_commands(mod)
+      self.get_commands(mod)
     end
 
     # Discovers the commands specified in the given base without considering the commands contained in sub-modules
@@ -23,21 +23,24 @@ module Rubycom
     def self.get_top_level_commands(base)
       return {} if base.nil? || !base.respond_to?(:singleton_methods) || !base.respond_to?(:included_modules)
       {
-          base.to_s.to_sym => base.singleton_methods(true).select { |sym| ![:included, :extended].include?(sym) }.map { |sym|
-            {
-                sym => {
-                    type: :command
-                }
-            }
-          }.reduce({}, &:merge).merge(
-              base.included_modules.select { |mod| ![:Rubycom].include?(mod.name.to_sym) }.map { |sym|
+          base.to_s.to_sym => {
+              type: :module,
+              commands: base.singleton_methods(true).select { |sym| ![:included, :extended].include?(sym) }.map { |sym|
                 {
-                    sym.to_s.to_sym => {
-                        type: :module
+                    sym => {
+                        type: :command
                     }
                 }
-              }.reduce({}, &:merge)
-          )
+              }.reduce({}, &:merge).merge(
+                  base.included_modules.select { |mod| ![:Rubycom].include?(mod.name.to_sym) }.map { |mod|
+                    {
+                        mod.to_s.to_sym => {
+                            type: :module
+                        }
+                    }
+                  }.reduce({}, &:merge)
+              )
+          }
       }
     end
 
@@ -49,21 +52,24 @@ module Rubycom
     def self.get_commands(base, all=true)
       return {} if base.nil? || !base.respond_to?(:singleton_methods) || !base.respond_to?(:included_modules)
       {
-          base.to_s.to_sym => base.singleton_methods(true).select { |sym| ![:included, :extended].include?(sym) }.map { |sym|
-            {
-                sym => {
-                    type: :command
-                }
-            }
-          }.reduce({},&:merge).merge(
-              base.included_modules.select { |mod| ![:Rubycom].include?(mod.name.to_sym) }.map { |sym|
+          base.to_s.to_sym => {
+              type: :module,
+              commands: base.singleton_methods(true).select { |sym| ![:included, :extended].include?(sym) }.map { |sym|
                 {
                     sym => {
-                        type: :module,
-                    }.merge(all ? {commands: self.get_commands(Kernel.const_get(sym.to_s.to_sym), all)} : {})
+                        type: :command
+                    }
                 }
-              }.reduce({}, &:merge) || {}
-          )
+              }.reduce({},&:merge).merge(
+                  base.included_modules.select { |mod| ![:Rubycom].include?(mod.name.to_sym) }.map { |mod|
+                    {
+                        mod.to_s.to_sym => {
+                            type: :module,
+                        }.merge(all ? self.get_commands(mod, all)[mod.to_s.to_sym] : {})
+                    }
+                  }.reduce({}, &:merge)
+              )
+          }
       }
     end
 

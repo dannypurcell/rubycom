@@ -16,23 +16,14 @@ module Rubycom
     end
 
     def self.map_sources(commands_hsh)
-      commands_hsh.map { |base, com_hsh|
+      commands_hsh.map { |base, hsh|
         base = Kernel.const_get(base) if base.class == Symbol
         {
-            base => com_hsh.map{|com_sym,hsh|
-              case hsh[:type]
-                when :module
-                  {
-                      com_sym => hsh.merge({source: Rubycom::Sources.module_source(Kernel.const_get(com_sym))})
-                  }
-                when :command
-                  {
-                      com_sym => hsh.merge({source: Rubycom::Sources.method_source(base.public_method(com_sym))})
-                  }
-                else
-                  raise "SourceError: Unrecognized command type #{type} for #{com_sym}"
-              end
-            }.reduce({},&:merge)
+            base => hsh.merge({
+                commands: hsh[:commands].map{||
+
+                }
+                              })
         }
       }.reduce({},&:merge)
     end
