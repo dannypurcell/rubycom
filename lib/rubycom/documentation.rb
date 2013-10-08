@@ -6,62 +6,6 @@ module Rubycom
     class DocumentationError < StandardError;
     end
 
-    def self.map_docs(commands_hsh, plugin=:yard)
-      commands_hsh = {} if commands_hsh.nil?
-      commands_hsh.map { |com_sym, hsh|
-        case hsh[:type]
-          when :module
-            {
-                com_sym => (Rubycom::Documentation.module(com_sym.to_s, hsh[:source], plugin)[:short_doc])
-            }
-          when :command
-            {
-                com_sym => (Rubycom::Documentation.command(com_sym.to_s, hsh[:source], plugin)[:short_doc])
-            }
-          else
-            raise DocumentationError, "Unrecognized command type #{type} for #{com_sym}"
-        end
-      }.reduce(&:merge)
-    end
-
-    def self.module(name, source, plugin=:yard)
-      required_keys = [:short_doc, :full_doc]
-      begin
-        result = case plugin
-          when :yard
-            load "#{File.dirname(__FILE__)}/documentation/yard_doc.rb"
-            Rubycom::Documentation::YardDoc.module_doc(name, source)
-          else
-            raise "Cannot document module #{name}: No Documentation plugin found for #{plugin}"
-        end
-        required_keys.each{|sym|
-          raise "Result from plugin #{plugin} for module #{name} missing required key #{sym}" unless result.keys.include?(sym)
-        }
-        result
-      rescue => e
-        raise DocumentationError, e, e.backtrace
-      end
-    end
-
-    def self.command(name, source, plugin=:yard)
-      required_keys = [:short_doc, :full_doc]
-      begin
-        result = case plugin
-          when :yard
-            load "#{File.dirname(__FILE__)}/documentation/yard_doc.rb"
-            Rubycom::Documentation::YardDoc.command_doc(name, source)
-          else
-            raise "Cannot document command #{name}: No Documentation plugin found for #{plugin}"
-        end
-        required_keys.each{|sym|
-          raise "Result from plugin #{plugin} for command #{name} missing required key #{sym}" unless result.keys.include?(sym)
-        }
-        result
-      rescue => e
-        raise DocumentationError, e, e.backtrace
-      end
-    end
-
     # @return [String] the usage message for Rubycom's default commands
     def self.get_default_commands_usage()
       <<-END.gsub(/^ {6}/, '')

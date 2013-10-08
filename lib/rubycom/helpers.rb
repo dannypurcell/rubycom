@@ -24,7 +24,7 @@ module Rubycom
     def self.format_command_summary(command_name, command_description, separator = '  -  ', max_width = 90)
       command_description = '' if command_description.nil?
       $stdout.sync = true
-      prefix_space = (" " * "#{command_name}#{separator}".length) << '            '
+      prefix_space = (' ' * "#{command_name}#{separator}".length) << '            '
       line_width = max_width - prefix_space.length
       "#{command_name}#{separator}#{self.word_wrap(command_description, line_width, prefix_space)}\n"
     end
@@ -43,7 +43,7 @@ module Rubycom
     # @param [String] longest_name the longest name which will be shown above or below the given name
     # @return [String] a spaced separator String for use in a command/description list
     def self.get_separator(name, longest_name='')
-      [].unshift(" " * (longest_name.to_s.length - name.to_s.length)).join << "  -  "
+      [].unshift(' ' * (longest_name.to_s.length - name.to_s.length)).join << '  -  '
     end
 
     def self.word_wrap(text, line_width=80, prefix='')

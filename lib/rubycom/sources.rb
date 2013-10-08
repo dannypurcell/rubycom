@@ -2,34 +2,39 @@ module Rubycom
   module Sources
     require 'method_source'
 
+    def self.source_commands(commands)
+      com = self.check(commands)
+      self.map_sources(com)
+    end
+
     def self.check(commands)
       raise "commands should be a Hash but was #{commands.class}" unless commands.class == Hash
-      commands.each{|sym, cmd|
-        raise "command key should be a Symbol but was #{sym.class}" unless sym.class == Symbol
-        raise "command value should be a Hash" unless cmd.class == Hash
-        raise "command value should have key :type" unless cmd.has_key?(:type)
+      commands.each{|base, cmd_hsh|
+        raise "command key should be a Module or Symbol but was #{base.class}" unless base.class == Module || base.class == Symbol
+        raise 'command value should be a Hash' unless cmd_hsh.class == Hash
       }
     end
 
-    def self.source_commands(commands)
-
-    end
-
-    def self.map_sources(base, commands_hsh)
-      commands_hsh.map { |com_sym, hsh|
-        case hsh[:type]
-          when :module
-            {
-                com_sym => hsh.merge({source: Rubycom::Sources.module_source(Kernel.const_get(com_sym))})
-            }
-          when :command
-            {
-                com_sym => hsh.merge({source: Rubycom::Sources.method_source(base.public_method(com_sym))})
-            }
-          else
-            raise "SourceError: Unrecognized command type #{type} for #{com_sym}"
-        end
-      }.reduce(&:merge)
+    def self.map_sources(commands_hsh)
+      commands_hsh.map { |base, com_hsh|
+        base = Kernel.const_get(base) if base.class == Symbol
+        {
+            base => com_hsh.map{|com_sym,hsh|
+              case hsh[:type]
+                when :module
+                  {
+                      com_sym => hsh.merge({source: Rubycom::Sources.module_source(Kernel.const_get(com_sym))})
+                  }
+                when :command
+                  {
+                      com_sym => hsh.merge({source: Rubycom::Sources.method_source(base.public_method(com_sym))})
+                  }
+                else
+                  raise "SourceError: Unrecognized command type #{type} for #{com_sym}"
+              end
+            }.reduce({},&:merge)
+        }
+      }.reduce({},&:merge)
     end
 
     # Searches for the source location of the given module. Since modules can be define in many locations, this method

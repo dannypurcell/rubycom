@@ -1,6 +1,37 @@
-require 'yard'
 module Rubycom
   module YardDoc
+    require 'yard'
+
+    def self.document_commands(commands_hsh)
+      commands_hsh.map { |base, com_hsh|
+        base = Kernel.const_get(base) if base.class == Symbol
+        {
+            base => com_hsh.map{|com_sym,hsh|
+              case hsh[:type]
+                when :module
+                  {
+                      com_sym => hsh.merge({documentation: Rubycom::YardDoc.module_doc(com_sym, hsh[:source])})
+                  }
+                when :command
+                  {
+                      com_sym => hsh.merge({documentation: Rubycom::YardDoc.command_doc(com_sym, hsh[:source])})
+                  }
+                else
+                  raise "DocumentationError: Unrecognized command type #{type} for #{com_sym}"
+              end
+            }.reduce({},&:merge)
+        }
+      }.reduce({},&:merge)
+    end
+
+    def self.check(sourced_commands)
+      raise "commands should be a Hash but was #{sourced_commands.class}" unless sourced_commands.class == Hash
+      sourced_commands.each{|base, cmd_hsh|
+        raise "command key should be a Module or Symbol but was #{base.class}" unless base.class == Module || base.class == Symbol
+        raise 'command value should be a Hash' unless cmd_hsh.class == Hash
+      }
+      sourced_commands
+    end
 
     def self.module_doc(module_name, module_source)
       YARD::Registry.clear
