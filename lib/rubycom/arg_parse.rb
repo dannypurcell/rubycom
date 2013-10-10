@@ -5,11 +5,11 @@ module Rubycom
 
     class ArgParseError < StandardError; end
 
-    def self.parse(command_line)
+    def self.parse_command_line(command_line)
       begin
         ArgTransform.new.apply(
             ArgParser.new.parse(
-                self.check(command_line) << ' '
+                self.check(command_line)
             )
         )
       rescue Parslet::ParseFailed => failure
@@ -18,8 +18,9 @@ module Rubycom
     end
 
     def self.check(command_line)
+      command_line = command_line.join(' ') if command_line.class == Array
       raise "args should be String but was #{command_line.class}" unless command_line.class == String
-      command_line
+      command_line << ' '
     end
 
     class ArgParser < Parslet::Parser
