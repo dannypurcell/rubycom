@@ -105,11 +105,11 @@ module Rubycom
         }.merge(plugins_options)
     )
 
-    parsed_args = plugins[:arguments].parse(args)
-    commands = plugins[:discover].discover_commands(base)
+    parsed_command_line = plugins[:arguments].parse_command_line(args)
+    commands = plugins[:discover].discover_commands(base, parsed_command_line)
     sourced_commands = plugins[:source].source_commands(commands)
     documented_commands = plugins[:documentation].document_commands(sourced_commands)
-    processed_input = plugins[:pre_process].pre_process(base, parsed_args, documented_commands)
+    processed_input = plugins[:pre_process].pre_process(base, parsed_command_line, sourced_commands, documented_commands)
     begin
       command_result = plugins[:executor].execute_command(processed_input)
     rescue RubycomError => e
