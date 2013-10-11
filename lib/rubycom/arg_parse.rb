@@ -3,7 +3,8 @@ module Rubycom
     require 'parslet'
     require 'yaml'
 
-    class ArgParseError < StandardError; end
+    class ArgParseError < StandardError;
+    end
 
     def self.parse_command_line(command_line)
       begin
@@ -31,7 +32,7 @@ module Rubycom
       rule(:double_escaped) { match(/"/) >> match(/[^"]/).repeat >> match(/"/) }
       rule(:single_escaped) { match(/'/) >> match(/[^']/).repeat >> match(/'/) }
       rule(:escaped_word) { single_escaped | double_escaped }
-      rule(:word) { ( escaped_word | match(/[^\s"']/) ).repeat(1) }
+      rule(:word) { (escaped_word | match(/\w|\./)).repeat(1) }
       rule(:list) { word >> (match(',') >> word).repeat(1) }
 
       rule(:short) { match('-') }
@@ -43,7 +44,7 @@ module Rubycom
       rule(:opt) { opt_prefix.as(:key) >> separator.as(:sep) >> (list | word).as(:val) >> space }
       rule(:flag) { (neg_opt_prefix | opt_prefix) >> space }
 
-      rule(:expression) { (arg.as(:arg) | opt.as(:opt) | flag.as(:flag)).repeat.as(:command_line) }
+      rule(:expression) { (opt.as(:opt) | flag.as(:flag) | arg.as(:arg)).repeat.as(:command_line) }
 
       root :expression
     end
@@ -92,7 +93,7 @@ module Rubycom
       if string.start_with?('#') || string.start_with?('!')
         result = string
       else
-        result = YAML.load(string.sub(/'|"/,'').reverse.sub(/'|"/,'').reverse)
+        result = YAML.load(string.sub(/'|"/, '').reverse.sub(/'|"/, '').reverse)
       end
       result
     end
@@ -121,9 +122,35 @@ module Rubycom
       subtree.group_by { |hsh| hsh.keys.first }.map { |type, values|
         {
             "#{type}s".to_sym => values.map { |hsh|
-              hsh.values.flatten
-            }.flatten
+              hsh[hsh.keys.first]
+            }
         }
+      }.reduce({}, &:merge).map{|type, values|
+        case type
+          when :opts
+            {
+                type => values.reduce({}){|acc, next_hsh|
+                  if acc.has_key?(next_hsh.keys.first)
+                    if acc[next_hsh.keys.first].class == Array
+                      acc[next_hsh.keys.first] << next_hsh[next_hsh.keys.first]
+                    else
+                      acc[next_hsh.keys.first] = ([acc[next_hsh.keys.first]] << next_hsh[next_hsh.keys.first])
+                    end
+                  else
+                    acc[next_hsh.keys.first] = next_hsh[next_hsh.keys.first]
+                  end
+                  acc
+                }
+            }
+          when :flags
+            {
+                type => values.reduce({}, &:merge)
+            }
+          else
+            {
+                type => values
+            }
+        end
       }.reduce({}, &:merge)
     end
 
