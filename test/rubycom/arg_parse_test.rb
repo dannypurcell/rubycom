@@ -38,18 +38,18 @@ class ArgParseTest < Test::Unit::TestCase
   end
 
   def test_parse_datetime
-    time = Time.new("2013-05-08 00:00:00 -0500")
+    time = Time.new('2013-05-08 00:00:00 -0500')
     date = Date.new(time.year, time.month, time.day)
-    test_arg = date.to_s
+    test_arg = "'#{date.to_s}'"
     result = Rubycom::ArgParse.parse_command_line(test_arg)
-    expected = {:command_line=>{:args=>[YAML.load(test_arg)]}}
+    expected = {:command_line=>{:args=>[YAML.load(date.to_s)]}}
     assert_equal(expected, result)
   end
 
   def test_parse_array
     test_arg = "'[\"1\", 2, \"a\", 'b']'"
     result = Rubycom::ArgParse.parse_command_line(test_arg.to_s)
-    expected = {:command_line=>{:args=>["1", 2, "a", "b"]}}
+    expected = {:command_line=>{:args=>[["1", 2, "a", "b"]]}}
     assert_equal(expected, result)
   end
 
@@ -86,28 +86,35 @@ class ArgParseTest < Test::Unit::TestCase
   def test_parse_opt_string_eq
     test_arg = "-test_arg=\"test\""
     result = Rubycom::ArgParse.parse_command_line(test_arg)
-    expected = {:command_line=>{:args=>["-test_arg=test"]}}
+    expected = {:command_line=>{:opts=>{"test_arg"=>"test"}}}
     assert_equal(expected, result)
   end
 
   def test_parse_opt_string_sp
     test_arg = "-test_arg \"test\""
     result = Rubycom::ArgParse.parse_command_line(test_arg)
-    expected = {:command_line=>{:args=>["-test_arg", "test"]}}
+    expected = {:command_line=>{:opts=>{"test_arg"=>"test"}}}
     assert_equal(expected, result)
   end
 
   def test_parse_opt_long_string_eq
-    test_arg = "--test_arg=\"test\""
+    test_arg = '--test_arg="test"'
     result = Rubycom::ArgParse.parse_command_line(test_arg)
-    expected = {:command_line=>{:args=>["--test_arg=test"]}}
+    expected = {:command_line=>{:opts=>{"test_arg"=>"test"}}}
     assert_equal(expected, result)
   end
 
   def test_parse_opt_long_string_sp
     test_arg = "--test_arg \"test\""
     result = Rubycom::ArgParse.parse_command_line(test_arg)
-    expected = {:command_line=>{:args=>["--test_arg", "test"]}}
+    expected = {:command_line=>{:opts=>{"test_arg"=>"test"}}}
+    assert_equal(expected, result)
+  end
+
+  def test_parse_multi_mention
+    test_arg = "--other='testing' --test_arg \"test\" --test_arg \"thing\""
+    result = Rubycom::ArgParse.parse_command_line(test_arg)
+    expected = {:command_line=>{:opts=>{"other"=>"testing", "test_arg"=>["test", "thing"]}}}
     assert_equal(expected, result)
   end
 
