@@ -1,6 +1,12 @@
+require "#{File.dirname(__FILE__)}/rubycom/arg_parse.rb"
 require "#{File.dirname(__FILE__)}/rubycom/singleton_commands.rb"
-require "#{File.dirname(__FILE__)}/rubycom/documentation.rb"
 require "#{File.dirname(__FILE__)}/rubycom/sources.rb"
+require "#{File.dirname(__FILE__)}/rubycom/yard_doc.rb"
+require "#{File.dirname(__FILE__)}/rubycom/pre_process.rb"
+require "#{File.dirname(__FILE__)}/rubycom/executor.rb"
+require "#{File.dirname(__FILE__)}/rubycom/post_process.rb"
+require "#{File.dirname(__FILE__)}/rubycom/cli.rb"
+require "#{File.dirname(__FILE__)}/rubycom/error_handler.rb"
 require "#{File.dirname(__FILE__)}/rubycom/version.rb"
 
 require 'yaml'
@@ -96,9 +102,9 @@ module Rubycom
             arguments: Rubycom::ArgParse,
             discover: Rubycom::SingletonCommands,
             source: Rubycom::Sources,
-            executor: Rubycom::Executor,
             documentation: Rubycom::YardDoc,
             pre_process: Rubycom::PreProcess,
+            executor: Rubycom::Executor,
             post_process: Rubycom::PostProcess,
             cli: Rubycom::CLI,
             error: Rubycom::ErrorHandler,
