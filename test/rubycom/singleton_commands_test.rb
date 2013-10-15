@@ -8,22 +8,17 @@ require 'test/unit'
 
 class SingletonCommandsTest < Test::Unit::TestCase
 
-  def test_get_command_constant_args_in
+  def test_discover_command_command_run
     test_mod = UtilTestComposite
-    test_args = ['UtilTestModule', 'test_command', 'test_extra_arg']
-    result = Rubycom::SingletonCommands.discover_commands(test_mod, test_args)
-    expected = [
-        UtilTestComposite,
-        UtilTestModule,
-        UtilTestModule.public_method(:test_command),
-        "test_extra_arg"
-    ]
+    test_args = {:args=>["UtilTestModule", "test_command_with_return", "testing_argument"],:opts=>{"test_option_int"=>10}}
+    result = Rubycom::SingletonCommands.discover_command(test_mod, test_args)
+    expected = UtilTestModule.public_method(:test_command_with_return)
     assert_equal(expected, result)
   end
 
-  def test_get_command_constant_hash_in
+  def test_discover_commands_hash_in
     test_mod = UtilTestComposite
-    test_args = {:command_line => {:args => ['UtilTestModule', 'test_command', 'test_extra_arg']}}
+    test_args = {:args => ['UtilTestModule', 'test_command', 'test_extra_arg']}
     result = Rubycom::SingletonCommands.discover_commands(test_mod, test_args)
     expected = [
         UtilTestComposite,

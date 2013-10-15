@@ -12,7 +12,7 @@ module Rubycom
             ArgParser.new.parse(
                 self.check(command_line)
             )
-        )
+        )[:command_line]
       rescue Parslet::ParseFailed => failure
         puts failure.cause.ascii_tree
       end
@@ -21,7 +21,7 @@ module Rubycom
     def self.check(command_line)
       command_line = command_line.join(' ') if command_line.class == Array
       raise "args should be String but was #{command_line.class}" unless command_line.class == String
-      command_line << ' '
+      (command_line.empty?)? command_line : command_line << ' '
     end
 
     class ArgParser < Parslet::Parser
@@ -144,7 +144,7 @@ module Rubycom
             }
           when :flags
             {
-                type => values.reduce({}, &:merge)
+                type => values.flatten(1).reduce({}, &:merge)
             }
           else
             {

@@ -1,9 +1,34 @@
 module Rubycom
   module SingletonCommands
 
-    def self.check(base_module, arguments)
-      arguments = arguments[:command_line][:args] if arguments.class == Hash && arguments.has_key?(:command_line)
-      raise "arguments should be an Array but was #{arguments.class}" unless arguments.class == Array
+    def self.discover_command(base_module, parsed_command_line)
+      self.discover_commands(base_module, parsed_command_line).select { |candidate|
+        candidate.class == Module || candidate.class == Method
+      }.last
+    end
+
+    def self.discover_commands(base_module, parsed_command_line)
+      base_module, args = self.check(base_module, parsed_command_line)
+      args.reduce([base_module]) { |acc, arg|
+        if acc.last.class == Method || acc.last.class == String
+          acc << arg
+        else
+          arg_sym = arg.to_s.to_sym
+          if self.get_top_level_commands(acc.last)[acc.last.to_s.to_sym][arg_sym] == :method
+            acc << acc.last.public_method(arg_sym)
+          else
+            acc << acc.last.const_get(arg_sym) rescue (acc << arg)
+          end
+        end
+      }
+    end
+
+    def self.check(base_module, parsed_command_line)
+      raise 'base_module should not be nil' if base_module.nil?
+      raise 'parsed_command_line should not be nil' if parsed_command_line.nil?
+      raise "parsed_command_line should be a Hash but was #{parsed_command_line.class}" if parsed_command_line.class != Hash
+      arguments = parsed_command_line[:args] || []
+      raise "args should be an Array but was #{arguments.class}" unless arguments.class == Array
       arguments.each { |arg|
         raise "#{arg} should be a String but was #{arg.class}" unless arg.class == String
       }
@@ -13,22 +38,6 @@ module Rubycom
       base_module = Kernel.const_get(base_module) if base_module.class == Symbol
       base_module = Kernel.const_get(base_module.to_sym) if base_module.class == String
       [base_module, arguments]
-    end
-
-    def self.discover_commands(base_module, arguments)
-      mod, args = self.check(base_module, arguments)
-      args.reduce([mod]) { |acc, arg|
-        if acc.last.class == Method || acc.last.class == String
-           acc << arg
-        else
-          arg_sym = arg.to_s.to_sym
-          if self.get_top_level_commands(acc.last)[acc.last.to_s.to_sym][arg_sym] == :method
-            acc << acc.last.public_method(arg_sym)
-          else
-            acc << acc.last.const_get(arg_sym)
-          end
-        end
-      }
     end
 
     # Discovers the commands specified in the given base without considering the commands contained in sub-modules
