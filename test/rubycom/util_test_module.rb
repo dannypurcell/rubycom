@@ -68,7 +68,7 @@ module UtilTestModule
   # @param [String] test_arg a test argument
   # @param [Integer] test_option_int an optional test argument which happens to be an Integer
   # @return [Array] an array including both params if test_option_int != 1
-  # @return [String] a the first param if test_option_int == 1
+  # @return [String] the first param if test_option_int == 1
   def self.test_command_with_return(test_arg, test_option_int=1)
     ret = [test_arg, test_option_int]
     if test_option_int == 1

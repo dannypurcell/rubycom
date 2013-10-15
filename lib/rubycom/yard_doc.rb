@@ -2,28 +2,29 @@ module Rubycom
   module YardDoc
     require 'yard'
 
-    def self.document_commands(commands_hsh)
-      commands = self.check(commands_hsh)
-      self.map_doc(commands)
+    def self.document_command(command, source_plugin)
+      self.document_commands([command], source_plugin).first[:doc]
     end
 
-    def self.check(sourced_commands)
-      raise "#{sourced_commands} should be an Array but was #{sourced_commands.class}" unless sourced_commands.class == Array
-      sourced_commands.each { |cmd_hsh|
-        raise "#{cmd_hsh} should be a Hash but was #{cmd_hsh.class}" unless cmd_hsh.class == Hash
-        raise "#{cmd_hsh} should have keys :command and :source" unless (cmd_hsh.keys - [:command, :source]).size >= 0
-      }
-      sourced_commands
+    def self.document_commands(commands, source_plugin)
+      commands, source_plugin = self.check(commands, source_plugin)
+      self.map_doc(commands, source_plugin)
     end
 
-    def self.map_doc(commands)
-      commands.map { |cmd_hsh|
+    def self.check(commands, source_plugin)
+      raise "#{source_plugin} should be a Module but was #{source_plugin.class}" unless source_plugin.class == Module
+      raise "#{commands} should be an Array but was #{commands.class}" unless commands.class == Array
+      [commands, source_plugin]
+    end
+
+    def self.map_doc(commands, source_plugin)
+      commands.map { |cmd|
         {
-            command: cmd_hsh[:command],
-            doc: if cmd_hsh[:command].class == Module
-                   self.module_doc(cmd_hsh[:command].to_s, cmd_hsh[:source])
-                 elsif cmd_hsh[:command].class == Method
-                   self.method_doc(cmd_hsh[:command].name, cmd_hsh[:source])
+            command: cmd,
+            doc: if cmd.class == Module
+                   self.module_doc(cmd,source_plugin)
+                 elsif cmd.class == Method
+                   self.method_doc(cmd, source_plugin)
                  else
                    {short_doc: '', full_doc: ''}
                  end
@@ -31,35 +32,44 @@ module Rubycom
       }
     end
 
-    def self.module_doc(module_name, module_source)
+    def self.module_doc(mod, source_plugin)
+      module_source = source_plugin.source_command(mod)
       YARD::Registry.clear
       YARD.parse_string(module_source.to_s)
-      doc_obj = YARD::Registry.at(module_name.to_s)
+      doc_obj = YARD::Registry.at(mod.to_s)
       return {short_doc: '', full_doc: ''} if doc_obj.nil?
       {
           short_doc: doc_obj.docstring.summary,
           full_doc: doc_obj.docstring.to_s,
-          sub_command_docs: doc_obj.children.map { |doc_method|
+          sub_command_docs: doc_obj.meths(:visibility => :public, :scope => :class).map { |doc_method|
             {
                 doc_method.name => self.method_doc(doc_method.name, doc_method)[:short_doc]
             }
-          }.reduce({},&:merge)
+          }.reduce({},&:merge).merge(
+              doc_obj.mixins.select{|doc_mod| doc_mod.name != :Rubycom }.map{|doc_mod|
+                YARD.parse_string(source_plugin.source_command(Kernel.const_get(doc_mod.name)))
+                sub_doc_obj = YARD::Registry.at(doc_mod.to_s)
+                {
+                    doc_mod.name => (sub_doc_obj.nil?)? '' : sub_doc_obj.docstring.summary
+                }
+              }.reduce({},&:merge)
+          )
       }
     end
 
-    def self.method_doc(method_name, module_source_obj)
-      if module_source_obj.class == YARD::CodeObjects::MethodObject
-        doc_obj = module_source_obj
-      elsif module_source_obj.class == String
+    def self.method_doc(method, source_plugin=nil)
+      if source_plugin.class == YARD::CodeObjects::MethodObject
+        doc_obj = source_plugin
+      elsif source_plugin.class == Module
         YARD::Registry.clear
-        YARD.parse_string(module_source_obj.to_s)
-        method_name = method_name.name if method_name.class == Method
-        doc_obj = YARD::Registry.at(method_name.to_s)
-        doc_obj = YARD::Registry.at("::#{method_name.to_s}") if doc_obj.nil?
-        doc_obj = YARD::Registry.at(method_name.to_s.split('.').last) if doc_obj.nil?
-        raise "No such method #{method_name} in the given source." if doc_obj.nil?
+        YARD.parse_string(source_plugin.source_command(method))
+        method = method.name if method.class == Method
+        doc_obj = YARD::Registry.at(method.to_s)
+        doc_obj = YARD::Registry.at("::#{method.to_s}") if doc_obj.nil?
+        doc_obj = YARD::Registry.at(method.to_s.split('.').last) if doc_obj.nil?
+        raise "No such method #{method} in the given source." if doc_obj.nil?
       else
-        raise "module_source_obj expected String or YARD::CodeObjects::MethodObject but was #{module_source_obj.class}"
+        raise "source_plugin should be YARD::CodeObjects::MethodObject|Module but was #{source_plugin.class}"
       end
       {
           parameters: doc_obj.parameters.map { |k, v|

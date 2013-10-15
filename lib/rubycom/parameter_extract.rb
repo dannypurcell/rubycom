@@ -1,45 +1,56 @@
 module Rubycom
-  module PreProcess
 
-    def self.pre_process(inputs)
-      inputs == self.check(inputs)
-      commands = inputs[:commands].select { |entry| entry.class == Module || entry.class == Method }
-      command = commands.last
-      command_doc = inputs[:documented_commands].select { |cmd_hsh| cmd_hsh[:command] == command }.first
-      inputs[:parsed_command_line][:command_line][:args] = inputs[:parsed_command_line][:command_line][:args].select { |arg|
-        !commands.map { |com|
-          if com.class == Method;
-            com.name.to_s
-          else
-            com.to_s
-          end }.include?(arg)
-      }
-      filtered_command_line = inputs[:parsed_command_line][:command_line]
-      {
-          command: command,
-          parameters: self.resolve_params(command.parameters, filtered_command_line),
-          cli: {
-              command_doc: command_doc[:doc][:full_doc],
-              command: (command_doc[:command].class == Method)? command_doc[:command].name.to_s : command_doc[:command].to_s
-          }.merge(
-              if command.class == Module
-                {
-                    sub_commands: command_doc[:doc][:sub_command_docs]
-                }
-              elsif command.class == Method
-                {
-                    options: command_doc[:doc][:parameters],
-                    tags: command_doc[:doc][:tags]
-                }
-              else
-                {}
-              end
-          )
-      }
+  class RubycomError < StandardError;
+  end
+
+  module ParameterExtract
+
+    def self.extract_parameters(command, parsed_command_line)
+      command, parsed_command_line = self.check(command, parsed_command_line)
+      self.resolve_params(command, parsed_command_line)
     end
 
-    def self.resolve_params(params, command_line)
-      command_line = command_line.clone
+    def self.check(command, parsed_command_line)
+      has_help_optional = false
+      command.parameters.select { |type, _| type == :opt }.map { |_, name| name.to_s }.each { |param|
+        has_help_optional = ['help', 'h'].include?(param)
+      } if command.class == Method
+      help_opt = !parsed_command_line[:opts].nil? && [
+          parsed_command_line[:opts]['help'],
+          parsed_command_line[:opts]['h']
+      ].include?(true)
+      help_flag = !parsed_command_line[:flags].nil? && [
+          parsed_command_line[:flags]['help'],
+          parsed_command_line[:flags]['h']
+      ].include?(true)
+      if !has_help_optional && (help_opt || help_flag)
+        raise RubycomError, 'Help Requested'
+      end
+
+      raise RubycomError, "No command specified." if command.nil?
+      raise RubycomError, "No command specified." if command.class == Module
+      raise RubycomError, "Unrecognized command." unless [Method, Module].include?(command.class)
+      raise "#{parsed_command_line} should be a Hash but was #{parsed_command_line.class}" if parsed_command_line.class != Hash
+
+      [command, parsed_command_line]
+    end
+
+    def self.resolve_params(command, command_line)
+      params = command.parameters
+      command_line = command_line.clone.map { |type, entry|
+        {
+            type => entry.clone
+        }
+      }.reduce({}, &:merge)
+
+      command_line[:args] = command_line[:args].reduce([]) { |arr, arg|
+        if  arg == command.name.to_s || arr.include?(command.name.to_s)
+          arr << arg
+        else
+          arr
+        end
+      }
+      command_line[:args].shift if command_line[:args].first == command.name.to_s
 
       first_char_map = params.group_by { |_, sym| sym.to_s[0] }
       param_names = params.map { |_, sym|
@@ -90,7 +101,7 @@ module Rubycom
             end
 
         end
-      }.reduce({}, &:merge).reject{|_,val| val == :rubycom_no_value }
+      }.reduce({}, &:merge).reject { |_, val| val == :rubycom_no_value }
     end
 
     def self.extract(long_name, short_name, opts, flags, args)
@@ -116,13 +127,7 @@ module Rubycom
       remaining[:opts] = opts unless opts.nil?
       remaining[:flags] = flags unless flags.nil?
       remaining[:args] = args unless args.nil?
-      {value: val, remaining: remaining }
-    end
-
-    def self.check(inputs)
-      required_keys = [:base, :parsed_command_line, :sourced_commands, :documented_commands]
-      raise "#{inputs} should have keys #{required_keys}" unless (inputs.keys - required_keys).size >= 0
-      inputs
+      {value: val, remaining: remaining}
     end
 
   end

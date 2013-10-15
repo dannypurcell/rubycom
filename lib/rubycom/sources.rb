@@ -2,6 +2,10 @@ module Rubycom
   module Sources
     require 'method_source'
 
+    def self.source_command(command)
+      self.source_commands([command]).first[:source]
+    end
+
     def self.source_commands(commands)
       com = self.check(commands)
       self.map_sources(com)

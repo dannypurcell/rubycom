@@ -1,10 +1,5 @@
-require "#{File.dirname(__FILE__)}/singleton_commands.rb"
-
 module Rubycom
   module Documentation
-
-    class DocumentationError < StandardError;
-    end
 
     # @return [String] the usage message for Rubycom's default commands
     def self.get_default_commands_usage()
