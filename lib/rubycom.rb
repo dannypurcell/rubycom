@@ -5,7 +5,8 @@ require "#{File.dirname(__FILE__)}/rubycom/sources.rb"
 require "#{File.dirname(__FILE__)}/rubycom/yard_doc.rb"
 require "#{File.dirname(__FILE__)}/rubycom/parameter_extract.rb"
 require "#{File.dirname(__FILE__)}/rubycom/executor.rb"
-require "#{File.dirname(__FILE__)}/rubycom/streaming_output.rb"
+require "#{File.dirname(__FILE__)}/rubycom/sub_process_executor.rb"
+require "#{File.dirname(__FILE__)}/rubycom/output_handler.rb"
 require "#{File.dirname(__FILE__)}/rubycom/command_interface.rb"
 require "#{File.dirname(__FILE__)}/rubycom/error_handler.rb"
 require "#{File.dirname(__FILE__)}/rubycom/version.rb"
@@ -86,10 +87,10 @@ module Rubycom
             arguments: Rubycom::ArgParse,
             discover: Rubycom::SingletonCommands,
             parameters: Rubycom::ParameterExtract,
-            executor: Rubycom::Executor,
+            executor: Rubycom::SubProcessExecutor,
             source: Rubycom::Sources,
             documentation: Rubycom::YardDoc,
-            output: Rubycom::StreamingOutput,
+            output: Rubycom::OutputHandler,
             cli: Rubycom::CommandInterface,
             error: Rubycom::ErrorHandler,
         }.merge(plugins_options)
