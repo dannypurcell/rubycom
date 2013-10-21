@@ -29,15 +29,12 @@ module Rubycom
       raise "parsed_command_line should be a Hash but was #{parsed_command_line.class}" if parsed_command_line.class != Hash
       arguments = parsed_command_line[:args] || []
       raise "args should be an Array but was #{arguments.class}" unless arguments.class == Array
-      arguments.each { |arg|
-        raise "#{arg} should be a String but was #{arg.class}" unless arg.class == String
-      }
       unless [Module, String, Symbol].include?(base_module.class)
         raise "base_module should be a Module, String, or Symbol but was #{base_module.class}"
       end
       base_module = Kernel.const_get(base_module) if base_module.class == Symbol
       base_module = Kernel.const_get(base_module.to_sym) if base_module.class == String
-      [base_module, arguments]
+      [base_module, arguments.map { |arg| arg.to_s } ]
     end
 
     # Discovers the commands specified in the given base without considering the commands contained in sub-modules

@@ -9,275 +9,150 @@ require 'time'
 
 class RubycomTest < Test::Unit::TestCase
 
-  def test_run
-    tst_out = ''
-
-    def tst_out.write(data)
-      self << data
+  def capture_out(&block)
+    original_stdout = $stdout
+    $stdout = fake = StringIO.new
+    begin
+      yield
+    ensure
+      $stdout = original_stdout
     end
+    fake.string
+  end
 
-    o_stdout, $stdout = $stdout, tst_out
-    o_stderr, $stderr = $stderr, tst_out
+  def capture_err(&block)
+    original_stderr = $stderr
+    $stderr = fake = StringIO.new
+    begin
+      yield
+    ensure
+      $stderr = original_stderr
+    end
+    fake.string
+  end
 
+  def test_run
     base = UtilTestModule
     args = %w(test_command_with_arg HelloWorld)
-    result = Rubycom.run(base, args)
+    result = nil
+    result_out = capture_out { result = Rubycom.run(base, args) }
 
-    expected = 'test_arg=HelloWorld'
-    expected_out = expected
+    expected = "test_arg=HelloWorld"
     assert_equal(expected, result)
-    assert_equal(expected_out.gsub(/\n|\r|\s/, ''), tst_out.gsub(/\n|\r|\s/, ''))
-  ensure
-    $stdout = o_stdout
-    $stderr = o_stderr
+    assert_equal(expected+"\n", result_out)
   end
 
   def test_run_help
-    tst_out = ''
-
-    def tst_out.write(data)
-      self << data
-    end
-
-    o_stdout, $stdout = $stdout, tst_out
-    o_stderr, $stderr = $stderr, tst_out
-
     base = UtilTestModule
     args = %w(help)
-    result = Rubycom.run(base, args)
+    result = nil
+    result_err = capture_err { result = Rubycom.run(base, args) }
 
-    expected = <<-END.gsub(/^ {4}/,'')
-    Usage:
-        UtilTestModule <command> [args]
-
-    Commands:
-    test_command                -  A basic test command
-    test_command_no_docs
-    test_command_with_arg       -  A test_command with one arg
-    test_command_arg_named_arg  -  A test_command with an arg named arg
-    test_command_with_args      -  A test_command with two args
-    test_command_with_options   -  A test_command with an optional argument
-    test_command_all_options    -  A test_command with all optional arguments
-    test_command_options_arr    -  A test_command with an options array
-    test_command_with_return    -  A test_command with a return argument
-    test_command_arg_timestamp  -  A test_command with a Timestamp argument and an unnecessarily
-                                   long description which should overflow when
-                                   it tries to line up with other descriptions.
-    test_command_arg_false      -  A test_command with a Boolean argument
-    test_command_arg_arr        -  A test_command with an array argument
-    test_command_arg_hash       -  A test_command with an Hash argument
-    test_command_mixed_options  -  A test_command with several mixed options
-
-    Default Commands:
-    help                 - prints this help page
-    job                  - run a job file
-    register_completions - setup bash tab completion
-    tab_complete         - print a list of possible matches for a given word
-
-    END
-    expected_out = expected
-    assert_equal(expected.gsub(/\n|\r|\s/, ''), result.gsub(/\n|\r|\s/, ''))
-    assert_equal(expected_out.gsub(/\n|\r|\s/, ''), tst_out.gsub(/\n|\r|\s/, ''))
-  ensure
-    $stdout = o_stdout
-    $stderr = o_stderr
+    assert_equal(nil, result)
+    assert_true(result_err.gsub(/\n|\r|\s/, '').size > 0, 'help output should not be empty')
+    assert_true(result_err.include?('Help Requested'), 'help output should state that help was requested')
   end
 
   def test_run_nil_return
-    tst_out = ''
-
-    def tst_out.write(data)
-      self << data
-    end
-
-    o_stdout, $stdout = $stdout, tst_out
-    o_stderr, $stderr = $stderr, tst_out
-
     base = UtilTestModule
     args = %w(test_command)
-    result = Rubycom.run(base, args)
+    result = nil
+    result_out = capture_out { result = Rubycom.run(base, args) }
 
-    expected = nil
-    expected_out = "command test\n"
-    assert_equal(expected, result)
-    assert_equal(expected_out.gsub(/\n|\r|\s/, ''), tst_out.gsub(/\n|\r|\s/, ''))
-  ensure
-    $stdout = o_stdout
-    $stderr = o_stderr
+    expected_out = "command test\n\n"
+    assert_equal(nil, result)
+    assert_equal(expected_out, result_out)
   end
 
   def test_run_hash_return
-    tst_out = ''
-
-    def tst_out.write(data)
-      self << data
-    end
-
-    o_stdout, $stdout = $stdout, tst_out
-    o_stderr, $stderr = $stderr, tst_out
-
     base = UtilTestModule
-    time = Time.now.to_s
+    time = "'#{Time.now.to_s}'"
     args = ['test_command_arg_timestamp', time]
-    result = Rubycom.run(base, args)
+    result = nil
+    result_out = capture_out { result = Rubycom.run(base, args) }
 
-    expected = {:test_time => Time.parse(time)}
-    expected_out = {test_time: Time.parse(time)}.to_yaml
+    expected = {test_time: Time.parse(time)}
+    expected_out = expected.to_yaml
     assert_equal(expected, result)
-    assert_equal(expected_out.gsub(/\n|\r|\s/, ''), tst_out.gsub(/\n|\r|\s/, ''))
-  ensure
-    $stdout = o_stdout
-    $stderr = o_stderr
+    assert_equal(expected_out, result_out)
   end
 
   def test_run_all_optional
-    tst_out = ''
-
-    def tst_out.write(data)
-      self << data
-    end
-
-    o_stdout, $stdout = $stdout, tst_out
-    o_stderr, $stderr = $stderr, tst_out
-
     base = UtilTestModule
     args = %w(test_command_all_options)
-    result = Rubycom.run(base, args)
+    result = nil
+    result_out = capture_out { result = Rubycom.run(base, args) }
 
     e_test_arg = 'test_arg_default'
     e_test_option = 'test_option_default'
-    expected = nil
-    expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n"
-    assert_equal(expected, result)
-    assert_equal(expected_out.gsub(/\n|\r|\s/, ''), tst_out.gsub(/\n|\r|\s/, ''))
-  ensure
-    $stdout = o_stdout
-    $stderr = o_stderr
+    expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n\n"
+    assert_equal(nil, result)
+    assert_equal(expected_out, result_out)
   end
 
   def test_run_all_opt_override_first
-    tst_out = ''
-
-    def tst_out.write(data)
-      self << data
-    end
-
-    o_stdout, $stdout = $stdout, tst_out
-    o_stderr, $stderr = $stderr, tst_out
-
     base = UtilTestModule
     args = %w(test_command_all_options test_arg_modified)
-    result = Rubycom.run(base, args)
+    result = nil
+    result_out = capture_out { result = Rubycom.run(base, args) }
 
     e_test_arg = 'test_arg_modified'
     e_test_option = 'test_option_default'
-    expected = nil
-    expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n"
-    assert_equal(expected, result)
-    assert_equal(expected_out.gsub(/\n|\r|\s/, ''), tst_out.gsub(/\n|\r|\s/, ''))
-  ensure
-    $stdout = o_stdout
-    $stderr = o_stderr
+    expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n\n"
+    assert_equal(nil, result)
+    assert_equal(expected_out, result_out)
   end
 
   def test_run_all_opt_override_first_alt
-    tst_out = ''
-
-    def tst_out.write(data)
-      self << data
-    end
-
-    o_stdout, $stdout = $stdout, tst_out
-    o_stderr, $stderr = $stderr, tst_out
-
     base = UtilTestModule
     args = %w(test_command_all_options -test_arg=test_arg_modified)
-    result = Rubycom.run(base, args)
+    result = nil
+    result_out = capture_out { result = Rubycom.run(base, args) }
 
     e_test_arg = 'test_arg_modified'
     e_test_option = 'test_option_default'
-    expected = nil
-    expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n"
-    assert_equal(expected, result)
-    assert_equal(expected_out.gsub(/\n|\r|\s/, ''), tst_out.gsub(/\n|\r|\s/, ''))
-  ensure
-    $stdout = o_stdout
-    $stderr = o_stderr
+    expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n\n"
+    assert_equal(nil, result)
+    assert_equal(expected_out, result_out)
   end
 
   def test_run_all_opt_override_second
-    tst_out = ''
-
-    def tst_out.write(data)
-      self << data
-    end
-
-    o_stdout, $stdout = $stdout, tst_out
-    o_stderr, $stderr = $stderr, tst_out
-
     base = UtilTestModule
     args = %w(test_command_all_options -test_option=test_option_modified)
-    result = Rubycom.run(base, args)
+    result = nil
+    result_out = capture_out { result = Rubycom.run(base, args) }
 
     e_test_arg = 'test_arg_default'
     e_test_option = 'test_option_modified'
-    expected = nil
-    expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n"
-    assert_equal(expected, result)
-    assert_equal(expected_out.gsub(/\n|\r|\s/, ''), tst_out.gsub(/\n|\r|\s/, ''))
-  ensure
-    $stdout = o_stdout
-    $stderr = o_stderr
+    expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n\n"
+    assert_equal(nil, result)
+    assert_equal(expected_out, result_out)
   end
 
   def test_run_all_opt_use_all_opt
-    tst_out = ''
-
-    def tst_out.write(data)
-      self << data
-    end
-
-    o_stdout, $stdout = $stdout, tst_out
-    o_stderr, $stderr = $stderr, tst_out
-
     base = UtilTestModule
     args = %w(test_command_all_options -test_arg=test_arg_modified -test_option=test_option_modified)
-    result = Rubycom.run(base, args)
+    result = nil
+    result_out = capture_out { result = Rubycom.run(base, args) }
 
     e_test_arg = 'test_arg_modified'
     e_test_option = 'test_option_modified'
-    expected = nil
-    expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n"
-    assert_equal(expected, result)
-    assert_equal(expected_out.gsub(/\n|\r|\s/, ''), tst_out.gsub(/\n|\r|\s/, ''))
-  ensure
-    $stdout = o_stdout
-    $stderr = o_stderr
+    expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n\n"
+    assert_equal(nil, result)
+    assert_equal(expected_out, result_out)
   end
 
   def test_run_all_opt_reverse
-    tst_out = ''
-
-    def tst_out.write(data)
-      self << data
-    end
-
-    o_stdout, $stdout = $stdout, tst_out
-    o_stderr, $stderr = $stderr, tst_out
-
     base = UtilTestModule
     args = %w(test_command_all_options -test_option=test_option_modified -test_arg=test_arg_modified)
-    result = Rubycom.run(base, args)
+    result = nil
+    result_out = capture_out { result = Rubycom.run(base, args) }
 
     e_test_arg = 'test_arg_modified'
     e_test_option = 'test_option_modified'
-    expected = nil
-    expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n"
-    assert_equal(expected, result)
-    assert_equal(expected_out.gsub(/\n|\r|\s/, ''), tst_out.gsub(/\n|\r|\s/, ''))
-  ensure
-    $stdout = o_stdout
-    $stderr = o_stderr
+    expected_out = "Output is test_arg=#{e_test_arg},test_option=#{e_test_option}\n\n"
+    assert_equal(nil, result)
+    assert_equal(expected_out, result_out)
   end
 
   def test_run_options_arr
@@ -300,55 +175,26 @@ class RubycomTest < Test::Unit::TestCase
   end
 
   def test_run_missing_required_arg
-    tst_out = ''
-
-    def tst_out.puts(data)
-      self << data.to_s << "\n"
-      nil
-    end
-
-    def tst_out.write(data)
-      self << data
-    end
-
-    o_stdout, $stdout = $stdout, tst_out
-    o_stderr, $stderr = $stderr, tst_out
-
     base = UtilTestModule
     args = %w(test_command_with_return -test_option_int=2)
-    result = Rubycom.run(base, args)
-
-    expected = nil
-    expected_out = "No argument available for test_arg\n"
-
-    assert_equal(expected, result)
-    assert_equal(expected_out, tst_out.lines.first)
-  ensure
-    $stdout = o_stdout
-    $stderr = o_stderr
+    result = nil
+    result_err = capture_err { result = Rubycom.run(base, args) }
+    expected = 'Missing required argument: test_arg'
+    assert_equal(nil, result)
+    assert_true(result_err.gsub(/\n|\r|\s/, '').size > 0, 'error output should not be empty')
+    assert_true(result_err.include?(expected), "error output should include #{expected} but was #{result}")
   end
 
   def test_run_composite
-    tst_out = ''
-
-    def tst_out.write(data)
-      self << data
-    end
-
-    o_stdout, $stdout = $stdout, tst_out
-    o_stderr, $stderr = $stderr, tst_out
-
     base = UtilTestComposite
-    args = ['test_composite_command', 'Hello Composite']
-    result = Rubycom.run(base, args)
+    args = ['test_composite_command', '\'Hello Composite\'']
+    result = nil
+    result_out = capture_out { result = Rubycom.run(base, args) }
 
-    expected = 'Hello Composite'
-    expected_out = 'Hello Composite'
+    expected = "Hello Composite"
+    expected_out = expected+"\n"
+    assert_equal(expected_out, result_out)
     assert_equal(expected, result)
-    assert_equal(expected_out, tst_out.split(/\n|\r|\r\n/).first)
-  ensure
-    $stdout = o_stdout
-    $stderr = o_stderr
   end
 
   def test_full_run_mixed_args

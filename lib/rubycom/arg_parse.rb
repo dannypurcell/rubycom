@@ -19,6 +19,7 @@ module Rubycom
     end
 
     def self.check(command_line)
+      #TODO consider joining arrays and hashes with proper escaping
       command_line = command_line.join(' ') if command_line.class == Array
       raise "args should be String but was #{command_line.class}" unless command_line.class == String
       (command_line.empty?)? command_line : command_line << ' '
