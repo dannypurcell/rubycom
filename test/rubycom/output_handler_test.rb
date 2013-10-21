@@ -28,16 +28,48 @@ class OutputHandlerTest < Test::Unit::TestCase
     assert_equal(expected, result)
   end
 
-  def test_process_output_hash
-    c_in, c_out, c_err = Open3.popen3("ruby -e 'puts \"subprocess test command output\"'")
-    result = {
-        in: c_in,
-        out: c_out,
-        err: c_err
-    }
-    result = capture_out { Rubycom::OutputHandler.process_output(result) }
+  def test_process_output_empty
+    test_result = ''
 
-    expected = "subprocess test command output\n"
+    result = capture_out { Rubycom::OutputHandler.process_output(test_result) }
+
+    expected = "\n"
+    assert_equal(expected, result)
+  end
+
+  def test_process_output_nil
+    test_result = nil
+
+    result = capture_out { Rubycom::OutputHandler.process_output(test_result) }
+
+    expected = "\n"
+    assert_equal(expected, result)
+  end
+
+  def test_process_output_object
+    test_result = Object.new
+
+    result = capture_out { Rubycom::OutputHandler.process_output(test_result) }
+
+    expected = "--- !ruby/object {}\n"
+    assert_equal(expected, result)
+  end
+
+  def test_process_output_array
+    test_result = []
+
+    result = capture_out { Rubycom::OutputHandler.process_output(test_result) }
+
+    expected = "--- []\n"
+    assert_equal(expected, result)
+  end
+
+  def test_process_output_hash
+    test_result = {test: 'val'}
+
+    result = capture_out { Rubycom::OutputHandler.process_output(test_result) }
+
+    expected = "---\n:test: val\n"
     assert_equal(expected, result)
   end
 

@@ -5,12 +5,12 @@ module Rubycom
 
   module ParameterExtract
 
-    def self.extract_parameters(command, parsed_command_line)
-      command, parsed_command_line = self.check(command, parsed_command_line)
-      self.resolve_params(command, parsed_command_line)
+    def self.extract_parameters(command, parsed_command_line, command_doc)
+      command, parsed_command_line, command_doc = self.check(command, parsed_command_line, command_doc)
+      self.resolve_params(command, parsed_command_line, command_doc)
     end
 
-    def self.check(command, parsed_command_line)
+    def self.check(command, parsed_command_line, command_doc)
       has_help_optional = false
       command.parameters.select { |type, _| type == :opt }.map { |_, name| name.to_s }.each { |param|
         has_help_optional = ['help', 'h'].include?(param)
@@ -32,11 +32,25 @@ module Rubycom
       raise RubycomError, "Unrecognized command." unless [Method, Module].include?(command.class)
       raise "#{parsed_command_line} should be a Hash but was #{parsed_command_line.class}" if parsed_command_line.class != Hash
 
-      [command, parsed_command_line]
+      raise "command_doc should be a Hash but was #{command_doc.class}" unless command_doc.class == Hash
+      raise "command_doc should have key :parameters" unless command_doc.has_key?(:parameters)
+      raise "command_doc[:parameters] should be an array but was #{command_doc[:parameters].class}" unless command_doc[:parameters].class == Array
+      command_doc[:parameters].each { |param_hsh|
+        raise "parameter #{param_hsh} should be a Hash but was #{param_hsh.class}" unless param_hsh.class == Hash
+        raise "parameter #{param_hsh} should have key :param_name" unless param_hsh.has_key?(:param_name)
+        raise "parameter #{param_hsh} should have key :default" unless param_hsh.has_key?(:default)
+      }
+      [command, parsed_command_line, command_doc]
     end
 
-    def self.resolve_params(command, command_line)
+    def self.resolve_params(command, command_line, command_doc)
       params = command.parameters
+      param_docs = (command_doc[:parameters] || {}).map { |param_hsh|
+        {
+            param_hsh[:param_name].to_sym => param_hsh.reject { |k, _| k == :param_name }
+        }
+      }.reduce({}, &:merge)
+
       command_line = command_line.clone.map { |type, entry|
         {
             type => entry.clone
@@ -71,33 +85,43 @@ module Rubycom
             command_line[:args] = extraction[:remaining][:args] unless extraction[:remaining][:args].nil?
 
             if extraction[:value] == :rubycom_no_value
-              {sym => :rubycom_no_value}
+              {sym => param_docs[sym][:default]}
             else
               {
                   sym => extraction[:value]
               }
             end
           when :rest
-            if (command_line[:args] + command_line[:opts].keys + command_line[:flags].keys).empty?
-              {sym => :rubycom_no_value}
-            else
-              rest_arr = {
-                  sym => (command_line[:args] + command_line[:opts] + command_line[:flags])
-              }
+            args = command_line[:args] || []
+            opts = command_line[:opts] || {}
+            flags = command_line[:flags] || {}
 
-              command_line[:opts] = {} unless command_line[:opts].nil?
-              command_line[:flags] = {} unless command_line[:flags].nil?
-              command_line[:args] = [] unless command_line[:args].nil?
+            rest_arr = {
+                sym => if args.empty? && opts.empty? && flags.empty?
+                         param_docs[sym][:default]
+                       elsif !args.empty? && opts.empty? && flags.empty?
+                         args
+                       elsif args.empty? && (!opts.empty? || !flags.empty?)
+                         flags.merge(opts)[sym].to_a << flags.merge(opts).reject { |k, _| k == sym }
+                       else
+                         rest = flags.merge(opts)[sym].to_a << flags.merge(opts).reject { |k, _| k == sym }
+                         args + rest
+                       end
+            }
 
-              rest_arr
-            end
+            command_line[:opts] = {} unless command_line[:opts].nil?
+            command_line[:flags] = {} unless command_line[:flags].nil?
+            command_line[:args] = [] unless command_line[:args].nil?
+
+            rest_arr
           else
             if command_line[:args].size > 0
               {
                   sym => (command_line[:args].shift)
               }
             else
-              {sym => :rubycom_no_value}
+              raise RubycomError, "Missing required argument: #{sym}" if type == :req
+              {sym => param_docs[sym][:default]}
             end
 
         end
@@ -124,9 +148,9 @@ module Rubycom
       end
 
       remaining = {}
-      remaining[:opts] = opts unless opts.nil?
-      remaining[:flags] = flags unless flags.nil?
-      remaining[:args] = args unless args.nil?
+      remaining[:opts] = options
+      remaining[:flags] = flags_opts
+      remaining[:args] = arguments
       {value: val, remaining: remaining}
     end
 

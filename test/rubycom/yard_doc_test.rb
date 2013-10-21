@@ -46,6 +46,7 @@ class YardDocTest < Test::Unit::TestCase
                     :test_command_arg_named_arg => "A test_command with an arg named arg.",
                     :test_command_arg_timestamp => "A test_command with a Timestamp argument and an unnecessarily long description which should overflow when\nit tries to line up with other descriptions.",
                     :test_command_mixed_options => "A test_command with several mixed options.",
+                    :test_command_nil_option => "A test_command with a nil optional argument.",
                     :test_command_no_docs => "",
                     :test_command_options_arr => "A test_command with an options array.",
                     :test_command_with_arg => "A test_command with one arg.",
@@ -76,8 +77,8 @@ class YardDocTest < Test::Unit::TestCase
     expected = {
         :full_doc => "A test_command with a return argument",
         :parameters => [
-            {:default => nil, :doc => "a test argument", :doc_type => "String", :param_name => "test_arg", :required => true},
-            {:default => 1, :doc => "an optional test argument which happens to be an Integer", :doc_type => "Integer", :param_name => "test_option_int", :required => false}
+            {:default => nil, :doc => "a test argument", :doc_type => "String", :param_name => "test_arg", :type => :req},
+            {:default => 1, :doc => "an optional test argument which happens to be an Integer", :doc_type => "Integer", :param_name => "test_option_int", :type => :opt}
         ],
         :short_doc => "A test_command with a return argument.",
         :tags => [
@@ -86,6 +87,26 @@ class YardDocTest < Test::Unit::TestCase
             {:name => nil, :tag_name => "return", :text => "an array including both params if test_option_int != 1", :types => ["Array"]},
             {:name => nil, :tag_name => "return", :text => "the first param if test_option_int == 1", :types => ["String"]}
         ]
+    }
+    assert_equal(expected, result)
+  end
+
+  def test_document_command_command_run_rest
+    test_command = UtilTestModule.public_method(:test_command_mixed_options)
+    test_source_plugin = Rubycom::Sources
+    result = Rubycom::YardDoc.document_command(test_command, test_source_plugin)
+    expected = {
+        :full_doc => "A test_command with several mixed options",
+        :parameters => [
+            {:default => nil, :doc => "", :doc_type => "", :param_name => "test_arg", :type => :req},
+            {:default => [], :doc => "", :doc_type => "", :param_name => "test_arr", :type => :opt},
+            {:default => "test_opt_arg", :doc => "", :doc_type => "", :param_name => "test_opt", :type => :opt},
+            {:default => {}, :doc => "", :doc_type => "", :param_name => "test_hsh", :type => :opt},
+            {:default => true, :doc => "", :doc_type => "", :param_name => "test_bool", :type => :opt},
+            {:default => [], :doc => "", :doc_type => "", :param_name => "*test_rest", :type => :rest}
+        ],
+        :short_doc => "A test_command with several mixed options.",
+        :tags => []
     }
     assert_equal(expected, result)
   end
@@ -107,6 +128,7 @@ class YardDocTest < Test::Unit::TestCase
             :test_command_arg_timestamp =>
                 "A test_command with a Timestamp argument and an unnecessarily long description which should overflow when\nit tries to line up with other descriptions.",
             :test_command_mixed_options => "A test_command with several mixed options.",
+            :test_command_nil_option=>"A test_command with a nil optional argument.",
             :test_command_no_docs => "",
             :test_command_options_arr => "A test_command with an options array.",
             :test_command_with_arg => "A test_command with one arg.",

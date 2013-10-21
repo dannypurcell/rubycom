@@ -6,7 +6,7 @@ module Rubycom
       <<-END.gsub(/ {6}/, '')
       #{self.build_usage(command, command_doc)}
       Description:
-      #{command_doc[:full_doc]}
+      #{command_doc[:full_doc].split("\n").map{|line| "  #{line}"}.join("\n").chomp}
       #{self.build_details(command, command_doc)}
       END
     end
@@ -22,7 +22,7 @@ module Rubycom
 
     def self.build_options(command, command_doc)
       if command.class == Module
-        "[command]"
+        "<command> [args]"
       elsif command.class == Method
         args, opts = command_doc[:parameters].map { |param|
           if param[:required]
@@ -43,17 +43,25 @@ module Rubycom
         (sub_commands.empty?)? '' : "Sub Commands:\n#{sub_commands}"
       elsif command.class == Method
         tags = Rubycom::Helpers.format_tags(command_doc[:tags])
-        other_tags = (tags[:others].empty?) ? '' : "Tags:\n  #{tags[:others].map { |line| "  #{line}" }.join.chomp}"
-        <<-END.gsub(/ {8}/, '')
-        #{other_tags}
-        Parameters:
-          #{tags[:params].map { |line| "  #{line}" }.join.chomp}
-        Returns:
-          #{tags[:returns].map { |line| "  #{line}" }.join.chomp}
-        END
+        "#{self.build_others(tags[:others])}#{self.build_params(tags[:params])}#{self.build_returns(tags[:returns])}"
       else
         ""
       end
+    end
+
+    def self.build_others(other_tags)
+      return nil if other_tags.nil? || other_tags.empty?
+      "\nTags:\n  #{other_tags.map { |line| "  #{line}" }.join.chomp}"
+    end
+
+    def self.build_params(param_tags)
+      return nil if param_tags.nil? || param_tags.empty?
+      "\nParameters:\n#{param_tags.map { |line| "  #{line}" }.join.chomp}"
+    end
+
+    def self.build_returns(return_tags)
+      return nil if return_tags.nil? || return_tags.empty?
+      "\nReturns:\n#{return_tags.map { |line| "  #{line}" }.join.chomp}"
     end
 
   end

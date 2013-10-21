@@ -1,11 +1,11 @@
 require "#{File.dirname(__FILE__)}/rubycom/completions.rb"
+require "#{File.dirname(__FILE__)}/rubycom/documentation.rb"
 require "#{File.dirname(__FILE__)}/rubycom/arg_parse.rb"
 require "#{File.dirname(__FILE__)}/rubycom/singleton_commands.rb"
 require "#{File.dirname(__FILE__)}/rubycom/sources.rb"
 require "#{File.dirname(__FILE__)}/rubycom/yard_doc.rb"
 require "#{File.dirname(__FILE__)}/rubycom/parameter_extract.rb"
 require "#{File.dirname(__FILE__)}/rubycom/executor.rb"
-require "#{File.dirname(__FILE__)}/rubycom/sub_process_executor.rb"
 require "#{File.dirname(__FILE__)}/rubycom/output_handler.rb"
 require "#{File.dirname(__FILE__)}/rubycom/command_interface.rb"
 require "#{File.dirname(__FILE__)}/rubycom/error_handler.rb"
@@ -63,11 +63,11 @@ module Rubycom
         when 'help'
           help_topic = args[1]
           if help_topic == 'register_completions'
-            usage = YardDoc.get_register_completions_usage(base)
+            usage = Documentation.get_register_completions_usage(base)
             puts usage
             return usage
           elsif help_topic == 'tab_complete'
-            usage = YardDoc.get_tab_complete_usage(base)
+            usage = Documentation.get_tab_complete_usage(base)
             puts usage
             return usage
           else
@@ -87,7 +87,7 @@ module Rubycom
             arguments: Rubycom::ArgParse,
             discover: Rubycom::SingletonCommands,
             parameters: Rubycom::ParameterExtract,
-            executor: Rubycom::SubProcessExecutor,
+            executor: Rubycom::Executor,
             source: Rubycom::Sources,
             documentation: Rubycom::YardDoc,
             output: Rubycom::OutputHandler,
@@ -99,14 +99,15 @@ module Rubycom
     parsed_command_line = plugins[:arguments].parse_command_line(args)
     command = plugins[:discover].discover_command(base, parsed_command_line)
     begin
-      parameters = plugins[:parameters].extract_parameters(command, parsed_command_line)
-
+      command_doc = plugins[:documentation].document_command(command, plugins[:source])
+      parameters = plugins[:parameters].extract_parameters(command, parsed_command_line, command_doc)
       command_result = plugins[:executor].execute_command(command, parameters)
       plugins[:output].process_output(command_result)
     rescue RubycomError => e
-      cli_output = plugins[:cli].build_interface(command, plugins[:documentation].document_command(command, plugins[:source]))
+      cli_output = plugins[:cli].build_interface(command, command_doc)
       plugins[:error].handle_error(e, cli_output)
     end
+    command_result
   end
 
   def self.load_plugins(plugins={})
