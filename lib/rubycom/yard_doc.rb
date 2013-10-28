@@ -93,7 +93,7 @@ module Rubycom
                 doc: doc_obj.tags.select { |tag| tag.name == k.to_s }.map { |tag| tag.text }.join("\n")
             }
           },
-          short_doc: doc_obj.base_docstring.summary,
+          short_doc: doc_obj.base_docstring.summary.to_s,
           full_doc: doc_obj.base_docstring.to_s,
           tags: doc_obj.tags.map { |tag|
             {

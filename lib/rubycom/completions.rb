@@ -6,9 +6,11 @@ module Rubycom
     #
     # @param [Module] base the module which invoked 'include Rubycom'
     # @param [Array] arguments a String Array representing the arguments to be matched
-    # @param [Module] the plugin to use for retrieving commands
+    # @param [Module] command_plugin the plugin to use for retrieving commands
     # @return [Array] a String Array including the possible matches for the given arguments
-    def tab_complete(base, arguments, command_plugin)
+    def self.tab_complete(base, arguments, command_plugin)
+      return [] unless base.class == Module
+      return [] unless command_plugin.class == Module
       arguments = [] if arguments.nil?
       args = (arguments.include?('tab_complete')) ? arguments[2..-1] : arguments
       matches = %w()
@@ -35,7 +37,7 @@ module Rubycom
     #
     # @param [Module] base the module which invoked 'include Rubycom'
     # @return [String] a message indicating the result of the command
-    def register_completions(base)
+    def self.register_completions(base)
       completion_function = <<-END.gsub(/^ {6}/, '')
 
       _#{base}_complete() {

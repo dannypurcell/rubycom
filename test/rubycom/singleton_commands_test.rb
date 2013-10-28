@@ -16,7 +16,7 @@ class SingletonCommandsTest < Test::Unit::TestCase
     assert_equal(expected, result)
   end
 
-  def test_discover_commands_hash_in
+  def test_discover_commands_extra_arg
     test_mod = UtilTestComposite
     test_args = {:args => ['UtilTestModule', 'test_command', 'test_extra_arg']}
     result = Rubycom::SingletonCommands.discover_commands(test_mod, test_args)
@@ -52,6 +52,7 @@ class SingletonCommandsTest < Test::Unit::TestCase
                           :test_command_arg_named_arg => :method,
                           :test_command_arg_timestamp => :method,
                           :test_command_mixed_options => :method,
+                          :test_command_nil_option=>:method,
                           :test_command_no_docs => :method,
                           :test_command_options_arr => :method,
                           :test_command_with_arg => :method,

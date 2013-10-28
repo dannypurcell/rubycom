@@ -19,7 +19,7 @@ class ParameterExtractTest < Test::Unit::TestCase
     test_command_line = {:args => ["UtilTestModule", "test_command_with_return", "testing_argument"], :opts => {"test_option_int" => 10}}
     result = Rubycom::ParameterExtract.extract_parameters(test_command, test_command_line, test_command_doc)
     test_command.parameters.each{|_, sym|
-      assert_true(result.has_key?(sym), 'extracted parameters should include values for each method parameter')
+      assert(result.has_key?(sym), 'extracted parameters should include values for each method parameter')
     }
     assert_equal('testing_argument', result[:test_arg])
     assert_equal(10, result[:test_option_int])
@@ -66,7 +66,7 @@ class ParameterExtractTest < Test::Unit::TestCase
     test_command_line = {:args => ["UtilTestModule", "test_command_with_return", "testing_argument"], :opts => {"test_option_int" => 10, "extraneous_opt" => true}}
     result = Rubycom::ParameterExtract.extract_parameters(test_command, test_command_line, test_command_doc)
     test_command.parameters.each{|_, sym|
-      assert_true(result.has_key?(sym), 'extracted parameters should include values for each method parameter')
+      assert(result.has_key?(sym), 'extracted parameters should include values for each method parameter')
     }
     assert_equal('testing_argument', result[:test_arg])
     assert_equal(10, result[:test_option_int])
@@ -83,7 +83,7 @@ class ParameterExtractTest < Test::Unit::TestCase
     test_command_line = {:args => ["UtilTestModule", "test_command_with_return", "testing_argument"], :opts => {"test_option_int" => 10}, :flags => {"z" => true}}
     result = Rubycom::ParameterExtract.extract_parameters(test_command, test_command_line, test_command_doc)
     test_command.parameters.each{|_, sym|
-      assert_true(result.has_key?(sym), 'extracted parameters should include values for each method parameter')
+      assert(result.has_key?(sym), 'extracted parameters should include values for each method parameter')
     }
     assert_equal('testing_argument', result[:test_arg])
     assert_equal(10, result[:test_option_int])
@@ -100,7 +100,7 @@ class ParameterExtractTest < Test::Unit::TestCase
     test_command_line = {:args => ["UtilTestModule", "test_command_with_return", "testing_argument"]}
     result = Rubycom::ParameterExtract.extract_parameters(test_command, test_command_line, test_command_doc)
     test_command.parameters.each{|_, sym|
-      assert_true(result.has_key?(sym), 'extracted parameters should include values for each method parameter')
+      assert(result.has_key?(sym), 'extracted parameters should include values for each method parameter')
     }
     assert_equal('testing_argument', result[:test_arg])
     assert_equal(1, result[:test_option_int])
@@ -117,7 +117,7 @@ class ParameterExtractTest < Test::Unit::TestCase
     test_command_line = {:args => ["UtilTestModule", "test_command_options_arr", 'test_option1', 'test_option2', 1.0, false]}
     result = Rubycom::ParameterExtract.extract_parameters(test_command, test_command_line, test_command_doc)
     test_command.parameters.each{|_, sym|
-      assert_true(result.has_key?(sym), 'extracted parameters should include values for each method parameter')
+      assert(result.has_key?(sym), 'extracted parameters should include values for each method parameter')
     }
     assert_equal('test_option1', result[:test_option])
     assert_equal(['test_option2', 1.0, false], result[:test_options])
