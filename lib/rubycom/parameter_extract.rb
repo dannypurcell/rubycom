@@ -46,9 +46,15 @@ module Rubycom
     def self.resolve_params(command, command_line, command_doc)
       params = command.parameters
       param_docs = (command_doc[:parameters] || {}).map { |param_hsh|
-        {
-            param_hsh[:param_name].to_sym => param_hsh.reject { |k, _| k == :param_name }
-        }
+        if param_hsh[:type] == :rest
+          {
+              param_hsh[:param_name].reverse.chomp('*').reverse.to_sym => param_hsh.reject { |k, _| k == :param_name }
+          }
+        else
+          {
+              param_hsh[:param_name].to_sym => param_hsh.reject { |k, _| k == :param_name }
+          }
+        end
       }.reduce({}, &:merge)
 
       command_line = command_line.clone.map { |type, entry|

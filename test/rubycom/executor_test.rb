@@ -61,20 +61,4 @@ class ExecutorTest < Test::Unit::TestCase
     assert_equal(expected, result)
   end
 
-  def test_execute_all_opt_override_first
-    test_command = UtilTestModule.public_method(:test_command_all_options)
-    test_parameters = {:test_arg => "test_arg_modified"}
-    result = capture_out { Rubycom::Executor.execute_command(test_command, test_parameters) }
-    expected = "Output is test_arg=test_arg_modified,test_option=test_option_default\n"
-    assert_equal(expected, result)
-  end
-
-  def test_execute_all_opt_override_second
-    test_command = UtilTestModule.public_method(:test_command_all_options)
-    test_parameters = {:test_option => "test_opt_modified"}
-    result = capture_out { Rubycom::Executor.execute_command(test_command, test_parameters) }
-    expected = "Output is test_arg=test_arg_default,test_option=test_opt_modified\n"
-    assert_equal(expected, result)
-  end
-
 end

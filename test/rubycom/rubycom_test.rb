@@ -49,8 +49,8 @@ class RubycomTest < Test::Unit::TestCase
     result_err = capture_err { result = Rubycom.run(base, args) }
 
     assert_equal(nil, result)
-    assert_true(result_err.gsub(/\n|\r|\s/, '').size > 0, 'help output should not be empty')
-    assert_true(result_err.include?('Help Requested'), 'help output should state that help was requested')
+    assert(result_err.gsub(/\n|\r|\s/, '').size > 0, 'help output should not be empty')
+    assert(result_err.include?('Help Requested'), 'help output should state that help was requested')
   end
 
   def test_run_nil_return
@@ -66,7 +66,7 @@ class RubycomTest < Test::Unit::TestCase
 
   def test_run_hash_return
     base = UtilTestModule
-    time = "'#{Time.now.to_s}'"
+    time = "#{Time.now.to_s}"
     args = ['test_command_arg_timestamp', time]
     result = nil
     result_out = capture_out { result = Rubycom.run(base, args) }
@@ -181,8 +181,8 @@ class RubycomTest < Test::Unit::TestCase
     result_err = capture_err { result = Rubycom.run(base, args) }
     expected = 'Missing required argument: test_arg'
     assert_equal(nil, result)
-    assert_true(result_err.gsub(/\n|\r|\s/, '').size > 0, 'error output should not be empty')
-    assert_true(result_err.include?(expected), "error output should include #{expected} but was #{result}")
+    assert(result_err.gsub(/\n|\r|\s/, '').size > 0, 'error output should not be empty')
+    assert(result_err.include?(expected), "error output should include #{expected} but was #{result}")
   end
 
   def test_run_composite
@@ -251,7 +251,7 @@ class RubycomTest < Test::Unit::TestCase
     assert_equal(expected, result)
   end
 
-  def test_full_run_mixed_args_no_rest
+  def test_full_run_mixed_args_rest_no_extra
     mod = 'util_test_module.rb'
     command = 'test_command_mixed_options'
     args = "testing_arg \"[test1, test2]\" -test_opt='testing_option' \"{a: 'test_hsh_arg'}\""
@@ -275,86 +275,6 @@ class RubycomTest < Test::Unit::TestCase
     args = "! \"[test1, test2]\" -test_opt='testing_option' \"{a: 'test_hsh_arg'}\" -test_bool=true some other args"
     expected = 'test_arg=! test_arr=["test1", "test2"] test_opt=testing_option test_hsh={"a"=>"test_hsh_arg"} test_bool=true test_rest=["some", "other", "args"]'+"\n"
     result = %x(ruby #{File.expand_path(File.dirname(__FILE__))}/#{mod} #{command} #{args})
-    assert_equal(expected, result)
-  end
-
-  def test_tab_complete_nil_arg
-    mod = UtilTestComposite
-    args = nil
-    expected = %w(test_composite_command UtilTestNoSingleton UtilTestModule)
-    result =  Rubycom.tab_complete(mod, args, Rubycom::SingletonCommands)
-    assert_equal(expected, result)
-  end
-
-  def test_tab_complete_empty_arg
-    mod = UtilTestComposite
-    args = %w()
-    expected = %w(test_composite_command UtilTestNoSingleton UtilTestModule)
-    result =  Rubycom.tab_complete(mod, args, Rubycom::SingletonCommands)
-    assert_equal(expected, result)
-  end
-
-  def test_tab_complete_partial_module
-    mod = UtilTestComposite
-    args = %w(Util)
-    expected = %w(UtilTestNoSingleton UtilTestModule)
-    result =  Rubycom.tab_complete(mod, args, Rubycom::SingletonCommands)
-    assert_equal(expected, result)
-  end
-
-  def test_tab_complete_partial_module_single_match
-    mod = UtilTestComposite
-    args = %w(UtilTestM)
-    expected = %w(UtilTestModule)
-    result =  Rubycom.tab_complete(mod, args, Rubycom::SingletonCommands)
-    assert_equal(expected, result)
-  end
-
-  def test_tab_complete_whole_module
-    mod = UtilTestComposite
-    args = %w(UtilTestModule)
-    expected = %w(test_command test_command_no_docs test_command_with_arg test_command_arg_named_arg test_command_with_args test_command_with_options test_command_all_options test_command_options_arr test_command_with_return test_command_arg_timestamp test_command_arg_false test_command_arg_arr test_command_arg_hash test_command_mixed_options)
-    result =  Rubycom.tab_complete(mod, args, Rubycom::SingletonCommands)
-    assert_equal(expected, result)
-  end
-
-  def test_tab_complete_empty_sub_command
-    mod = UtilTestComposite
-    args = %w(UtilTestModule )
-    expected = %w(test_command test_command_no_docs test_command_with_arg test_command_arg_named_arg test_command_with_args test_command_with_options test_command_all_options test_command_options_arr test_command_with_return test_command_arg_timestamp test_command_arg_false test_command_arg_arr test_command_arg_hash test_command_mixed_options)
-    result =  Rubycom.tab_complete(mod, args, Rubycom::SingletonCommands)
-    assert_equal(expected, result)
-  end
-
-  def test_tab_complete_partial_sub_command
-    mod = UtilTestComposite
-    args = %w(UtilTestModule test_command_ar)
-    expected = %w(test_command_arg_named_arg test_command_arg_timestamp test_command_arg_false test_command_arg_arr test_command_arg_hash)
-    result =  Rubycom.tab_complete(mod, args, Rubycom::SingletonCommands)
-    assert_equal(expected, result)
-  end
-
-  def test_tab_complete_whole_sub_command_single_match
-    mod = UtilTestComposite
-    args = %w(UtilTestModule test_command_with_options)
-    expected = %w()
-    result =  Rubycom.tab_complete(mod, args, Rubycom::SingletonCommands)
-    assert_equal(expected, result)
-  end
-
-  def test_tab_complete_whole_sub_command_multi_match
-    mod = UtilTestComposite
-    args = %w(UtilTestModule test_command_with_arg)
-    expected = %w()
-    result =  Rubycom.tab_complete(mod, args, Rubycom::SingletonCommands)
-    assert_equal(expected, result)
-  end
-
-  def test_tab_complete_whole_sub_command_with_empty
-    mod = UtilTestComposite
-    args = %w(UtilTestModule test_command_with_args )
-    expected = %w()
-    result =  Rubycom.tab_complete(mod, args, Rubycom::SingletonCommands)
     assert_equal(expected, result)
   end
 

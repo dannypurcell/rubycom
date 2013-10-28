@@ -25,8 +25,8 @@ class ErrorHandlerTest < Test::Unit::TestCase
 
     result = capture_err { Rubycom::ErrorHandler.handle_error(test_error, test_cli_output) }
 
-    assert_true(result.gsub(/\s|\n|\r\n/,'').include?(test_error.to_s.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_error.to_s}")
-    assert_true(result.gsub(/\s|\n|\r\n/,'').include?(test_cli_output.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_cli_output}")
+    assert(result.gsub(/\s|\n|\r\n/,'').include?(test_error.to_s.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_error.to_s}")
+    assert(result.gsub(/\s|\n|\r\n/,'').include?(test_cli_output.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_cli_output}")
   end
 
   def test_handle_error_string
@@ -35,8 +35,8 @@ class ErrorHandlerTest < Test::Unit::TestCase
 
     result = capture_err { Rubycom::ErrorHandler.handle_error(test_error, test_cli_output) }
 
-    assert_true(result.gsub(/\s|\n|\r\n/,'').include?(test_error.to_s.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_error.to_s}")
-    assert_true(result.gsub(/\s|\n|\r\n/,'').include?(test_cli_output.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_cli_output}")
+    assert(result.gsub(/\s|\n|\r\n/,'').include?(test_error.to_s.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_error.to_s}")
+    assert(result.gsub(/\s|\n|\r\n/,'').include?(test_cli_output.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_cli_output}")
   end
 
   def test_handle_error_nil
@@ -45,8 +45,8 @@ class ErrorHandlerTest < Test::Unit::TestCase
 
     result = capture_err { Rubycom::ErrorHandler.handle_error(test_error, test_cli_output) }
 
-    assert_true(result.gsub(/\s|\n|\r\n/,'').include?(test_error.to_s.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_error.to_s}")
-    assert_true(result.gsub(/\s|\n|\r\n/,'').include?(test_cli_output.to_s.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_cli_output}")
+    assert(result.gsub(/\s|\n|\r\n/,'').include?(test_error.to_s.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_error.to_s}")
+    assert(result.gsub(/\s|\n|\r\n/,'').include?(test_cli_output.to_s.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_cli_output}")
   end
 
   def test_handle_error_empty
@@ -55,8 +55,8 @@ class ErrorHandlerTest < Test::Unit::TestCase
 
     result = capture_err { Rubycom::ErrorHandler.handle_error(test_error, test_cli_output) }
 
-    assert_true(result.gsub(/\s|\n|\r\n/,'').include?(test_error.to_s.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_error.to_s}")
-    assert_true(result.gsub(/\s|\n|\r\n/,'').include?(test_cli_output.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_cli_output}")
+    assert(result.gsub(/\s|\n|\r\n/,'').include?(test_error.to_s.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_error.to_s}")
+    assert(result.gsub(/\s|\n|\r\n/,'').include?(test_cli_output.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_cli_output}")
   end
 
   def test_handle_error_object
@@ -65,8 +65,8 @@ class ErrorHandlerTest < Test::Unit::TestCase
 
     result = capture_err { Rubycom::ErrorHandler.handle_error(test_error, test_cli_output) }
 
-    assert_true(result.gsub(/\s|\n|\r\n/,'').include?(test_error.to_s.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_error.to_s}")
-    assert_true(result.gsub(/\s|\n|\r\n/,'').include?(test_cli_output.to_s.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_cli_output}")
+    assert(result.gsub(/\s|\n|\r\n/,'').include?(test_error.to_s.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_error.to_s}")
+    assert(result.gsub(/\s|\n|\r\n/,'').include?(test_cli_output.to_s.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_cli_output}")
   end
 
 end

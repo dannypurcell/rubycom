@@ -33,10 +33,10 @@ class CommandInterfaceTest < Test::Unit::TestCase
     }
     result = Rubycom::CommandInterface.build_interface(test_command, test_doc)
 
-    assert_true(result.gsub(/\s|\n|\r\n/,'').include?(test_doc[:full_doc].gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_doc[:full_doc]}")
+    assert(result.gsub(/\s|\n|\r\n/,'').include?(test_doc[:full_doc].gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_doc[:full_doc]}")
     test_doc[:sub_command_docs].each{|cmd,doc|
-      assert_true(result.include?(cmd.to_s),"#{result} should include #{cmd.to_s}")
-      assert_true(result.gsub(/\s|\n|\r\n/,'').include?(doc.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{doc}")
+      assert(result.include?(cmd.to_s),"#{result} should include #{cmd.to_s}")
+      assert(result.gsub(/\s|\n|\r\n/,'').include?(doc.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{doc}")
     }
   end
 
@@ -46,8 +46,8 @@ class CommandInterfaceTest < Test::Unit::TestCase
         :full_doc => "A test_command with a return argument",
         :short_doc => "A test_command with a return argument.",
         :parameters => [
-            {:default => nil, :doc => "a test argument", :doc_type => "String", :param_name => "test_arg", :required => true},
-            {:default => 1, :doc => "an optional test argument which happens to be an Integer", :doc_type => "Integer", :param_name => "test_option_int", :required => false}
+            {:default => nil, :doc => "a test argument", :doc_type => "String", :param_name => "test_arg", :type => :req},
+            {:default => 1, :doc => "an optional test argument which happens to be an Integer", :doc_type => "Integer", :param_name => "test_option_int", :type => :opt }
         ],
         :tags => [
             {:name => "test_arg", :tag_name => "param", :text => "a test argument", :types => ["String"]},
@@ -58,15 +58,15 @@ class CommandInterfaceTest < Test::Unit::TestCase
     }
     result = Rubycom::CommandInterface.build_interface(test_command, test_doc)
 
-    assert_true(result.gsub(/\s|\n|\r\n/,'').include?(test_doc[:full_doc].gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_doc[:full_doc]}")
+    assert(result.gsub(/\s|\n|\r\n/,'').include?(test_doc[:full_doc].gsub(/\s|\n|\r\n/,'')),"#{result} should include #{test_doc[:full_doc]}")
     test_doc[:tags].each{|tag|
       if tag[:name].nil?
-        assert_true(result.include?(tag[:tag_name].to_s),"#{result} should include #{tag[:tag_name].to_s}")
+        assert(result.include?(tag[:tag_name].to_s),"#{result} should include #{tag[:tag_name].to_s}")
       else
-        assert_true(result.include?(tag[:name].to_s),"#{result} should include #{tag[:name].to_s}")
+        assert(result.include?(tag[:name].to_s),"#{result} should include #{tag[:name].to_s}")
       end
-      assert_true(result.gsub(/\s|\n|\r\n/,'').include?("#{tag[:types]}"),"#{result} should include #{tag[:types]}")
-      assert_true(result.gsub(/\s|\n|\r\n/,'').include?(tag[:text].gsub(/\s|\n|\r\n/,'')),"#{result} should include #{tag[:text]}")
+      assert(result.gsub(/\s|\n|\r\n/,'').include?("#{tag[:types]}"),"#{result} should include #{tag[:types]}")
+      assert(result.gsub(/\s|\n|\r\n/,'').include?(tag[:text].gsub(/\s|\n|\r\n/,'')),"#{result} should include #{tag[:text]}")
     }
   end
 
@@ -95,7 +95,7 @@ class CommandInterfaceTest < Test::Unit::TestCase
     }
     result = Rubycom::CommandInterface.build_usage(test_command, test_doc)
 
-    assert_true(result.include?(test_command.to_s),"#{result} should include #{test_command.to_s}")
+    assert(result.include?(test_command.to_s),"#{result} should include #{test_command.to_s}")
   end
 
   def test_build_usage_method
@@ -104,8 +104,8 @@ class CommandInterfaceTest < Test::Unit::TestCase
         :full_doc => "A test_command with a return argument",
         :short_doc => "A test_command with a return argument.",
         :parameters => [
-            {:default => nil, :doc => "a test argument", :doc_type => "String", :param_name => "test_arg", :required => true},
-            {:default => 1, :doc => "an optional test argument which happens to be an Integer", :doc_type => "Integer", :param_name => "test_option_int", :required => false}
+            {:default => nil, :doc => "a test argument", :doc_type => "String", :param_name => "test_arg", :type => :req},
+            {:default => 1, :doc => "an optional test argument which happens to be an Integer", :doc_type => "Integer", :param_name => "test_option_int", :type => :opt}
         ],
         :tags => [
             {:name => "test_arg", :tag_name => "param", :text => "a test argument", :types => ["String"]},
@@ -116,12 +116,12 @@ class CommandInterfaceTest < Test::Unit::TestCase
     }
     result = Rubycom::CommandInterface.build_usage(test_command, test_doc)
 
-    assert_true(result.include?(test_command.name.to_s),"#{result} should include #{test_command.name.to_s}")
+    assert(result.include?(test_command.name.to_s),"#{result} should include #{test_command.name.to_s}")
     test_doc[:parameters].each{|param|
-      if param[:required]
-        assert_true(result.include?("<#{param[:param_name]}>"),"#{result} should include <#{param[:param_name]}>")
+      if param[:type] == :req
+        assert(result.include?("<#{param[:param_name]}>"),"#{result} should include <#{param[:param_name]}>")
       else
-        assert_true(result.include?(param[:param_name]),"#{result} should include #{param[:param_name]}")
+        assert(result.include?(param[:param_name]),"#{result} should include #{param[:param_name]}")
       end
     }
   end
@@ -151,7 +151,7 @@ class CommandInterfaceTest < Test::Unit::TestCase
     }
     result = Rubycom::CommandInterface.build_options(test_command, test_doc)
 
-    assert_true(result.include?("[command]"),"#{result} should include [command]")
+    assert(result.include?("<command>"),"#{result} should include <command>")
   end
 
   def test_build_options_method
@@ -160,8 +160,8 @@ class CommandInterfaceTest < Test::Unit::TestCase
         :full_doc => "A test_command with a return argument",
         :short_doc => "A test_command with a return argument.",
         :parameters => [
-            {:default => nil, :doc => "a test argument", :doc_type => "String", :param_name => "test_arg", :required => true},
-            {:default => 1, :doc => "an optional test argument which happens to be an Integer", :doc_type => "Integer", :param_name => "test_option_int", :required => false}
+            {:default => nil, :doc => "a test argument", :doc_type => "String", :param_name => "test_arg", :type => :req},
+            {:default => 1, :doc => "an optional test argument which happens to be an Integer", :doc_type => "Integer", :param_name => "test_option_int", :type => :opt}
         ],
         :tags => [
             {:name => "test_arg", :tag_name => "param", :text => "a test argument", :types => ["String"]},
@@ -173,10 +173,10 @@ class CommandInterfaceTest < Test::Unit::TestCase
     result = Rubycom::CommandInterface.build_options(test_command, test_doc)
 
     test_doc[:parameters].each{|param|
-      if param[:required]
-        assert_true(result.include?("<#{param[:param_name]}>"),"#{result} should include <#{param[:param_name]}>")
+      if param[:type] == :req
+        assert(result.include?("<#{param[:param_name]}>"),"#{result} should include <#{param[:param_name]}>")
       else
-        assert_true(result.include?(param[:param_name]),"#{result} should include #{param[:param_name]}")
+        assert(result.include?(param[:param_name]),"#{result} should include #{param[:param_name]}")
       end
     }
   end
@@ -206,10 +206,10 @@ class CommandInterfaceTest < Test::Unit::TestCase
     }
     result = Rubycom::CommandInterface.build_details(test_command, test_doc)
 
-    assert_true(result.include?("Sub Commands:"),"#{result} should include Sub Commands:")
+    assert(result.include?("Sub Commands:"),"#{result} should include Sub Commands:")
     test_doc[:sub_command_docs].each{|cmd,doc|
-      assert_true(result.include?(cmd.to_s),"#{result} should include #{cmd.to_s}")
-      assert_true(result.gsub(/\s|\n|\r\n/,'').include?(doc.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{doc}")
+      assert(result.include?(cmd.to_s),"#{result} should include #{cmd.to_s}")
+      assert(result.gsub(/\s|\n|\r\n/,'').include?(doc.gsub(/\s|\n|\r\n/,'')),"#{result} should include #{doc}")
     }
   end
 
@@ -231,16 +231,16 @@ class CommandInterfaceTest < Test::Unit::TestCase
     }
     result = Rubycom::CommandInterface.build_details(test_command, test_doc)
 
-    assert_true(result.include?("Parameters:"),"#{result} should include Parameters:")
-    assert_true(result.include?("Returns:"),"#{result} should include Returns:")
+    assert(result.include?("Parameters:"),"#{result} should include Parameters:")
+    assert(result.include?("Returns:"),"#{result} should include Returns:")
     test_doc[:tags].each{|tag|
       if tag[:name].nil?
-        assert_true(result.include?(tag[:tag_name].to_s),"#{result} should include #{tag[:tag_name].to_s}")
+        assert(result.include?(tag[:tag_name].to_s),"#{result} should include #{tag[:tag_name].to_s}")
       else
-        assert_true(result.include?(tag[:name].to_s),"#{result} should include #{tag[:name].to_s}")
+        assert(result.include?(tag[:name].to_s),"#{result} should include #{tag[:name].to_s}")
       end
-      assert_true(result.gsub(/\s|\n|\r\n/,'').include?("#{tag[:types]}"),"#{result} should include #{tag[:types]}")
-      assert_true(result.gsub(/\s|\n|\r\n/,'').include?(tag[:text].gsub(/\s|\n|\r\n/,'')),"#{result} should include #{tag[:text]}")
+      assert(result.gsub(/\s|\n|\r\n/,'').include?("#{tag[:types]}"),"#{result} should include #{tag[:types]}")
+      assert(result.gsub(/\s|\n|\r\n/,'').include?(tag[:text].gsub(/\s|\n|\r\n/,'')),"#{result} should include #{tag[:text]}")
     }
   end
 
