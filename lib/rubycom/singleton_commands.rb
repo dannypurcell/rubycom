@@ -24,13 +24,13 @@ module Rubycom
     end
 
     def self.check(base_module, parsed_command_line)
-      raise 'base_module should not be nil' if base_module.nil?
-      raise 'parsed_command_line should not be nil' if parsed_command_line.nil?
-      raise "parsed_command_line should be a Hash but was #{parsed_command_line.class}" if parsed_command_line.class != Hash
+      raise ArgumentError, 'base_module should not be nil' if base_module.nil?
+      raise ArgumentError, 'parsed_command_line should not be nil' if parsed_command_line.nil?
+      raise ArgumentError, "parsed_command_line should be a Hash but was #{parsed_command_line.class}" if parsed_command_line.class != Hash
       arguments = parsed_command_line[:args] || []
-      raise "args should be an Array but was #{arguments.class}" unless arguments.class == Array
+      raise ArgumentError, "args should be an Array but was #{arguments.class}" unless arguments.class == Array
       unless [Module, String, Symbol].include?(base_module.class)
-        raise "base_module should be a Module, String, or Symbol but was #{base_module.class}"
+        raise ArgumentError, "base_module should be a Module, String, or Symbol but was #{base_module.class}"
       end
       base_module = Kernel.const_get(base_module) if base_module.class == Symbol
       base_module = Kernel.const_get(base_module.to_sym) if base_module.class == String

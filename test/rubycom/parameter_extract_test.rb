@@ -35,7 +35,7 @@ class ParameterExtractTest < Test::Unit::TestCase
     }
     test_command_line = {:args => ["UtilTestModule", "test_command_with_return", "testing_argument"], :opts => {"test_option_int" => 10, "help" => true}}
     result = nil
-    assert_raise(Rubycom::RubycomError) { result = Rubycom::ParameterExtract.extract_parameters(test_command, test_command_line, test_command_doc) }
+    assert_raise(Rubycom::ParameterExtractError) { result = Rubycom::ParameterExtract.extract_parameters(test_command, test_command_line, test_command_doc) }
     expected = nil
     assert_equal(expected, result)
   end
@@ -50,7 +50,7 @@ class ParameterExtractTest < Test::Unit::TestCase
     }
     test_command_line = {:args => ["UtilTestModule", "test_command_with_return", "testing_argument"], :opts => {"test_option_int" => 10}, :flags => {"h" => true}}
     result = nil
-    assert_raise(Rubycom::RubycomError) { result = Rubycom::ParameterExtract.extract_parameters(test_command, test_command_line, test_command_doc) }
+    assert_raise(Rubycom::ParameterExtractError) { result = Rubycom::ParameterExtract.extract_parameters(test_command, test_command_line, test_command_doc) }
     expected = nil
     assert_equal(expected, result)
   end
@@ -133,7 +133,7 @@ class ParameterExtractTest < Test::Unit::TestCase
     }
     test_command_line = {:args => ["UtilTestModule", "test_command_with_return"], :opts => {"test_option_int" => 10}}
     result = nil
-    assert_raise(Rubycom::RubycomError) { result = Rubycom::ParameterExtract.extract_parameters(test_command, test_command_line, test_command_doc) }
+    assert_raise(Rubycom::ParameterExtractError) { result = Rubycom::ParameterExtract.extract_parameters(test_command, test_command_line, test_command_doc) }
     expected = nil
     assert_equal(expected, result)
   end

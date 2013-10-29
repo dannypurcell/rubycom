@@ -3,9 +3,6 @@ module Rubycom
     require 'parslet'
     require 'yaml'
 
-    class ArgParseError < StandardError;
-    end
-
     # Runs a parser against the given Array of arguments to match command argument, option, and flag patterns.
     #
     # @param [Array] command_line an array of strings representing the arguments taken from the command line

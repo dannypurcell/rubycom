@@ -12,9 +12,9 @@ module Rubycom
     end
 
     def self.check(commands)
-      raise "#{commands} should be an Array but was #{commands.class}" unless commands.class == Array
+      raise ArgumentError, "#{commands} should be an Array but was #{commands.class}" unless commands.class == Array
       commands.each { |cmd|
-        raise "#{cmd} should be a Module, Method, or String but was #{cmd.class}" unless [Module, Method, String].include?(cmd.class)
+        raise ArgumentError, "#{cmd} should be a Module, Method, or String but was #{cmd.class}" unless [Module, Method, String].include?(cmd.class)
       }
     end
 
@@ -41,7 +41,7 @@ module Rubycom
     # @return [String] a string representing the source of the given module or an empty string if no source file could be located
     # an array of file paths where the modules methods are defined
     def self.module_source(mod)
-      raise "#{mod} should be #{Module} but was #{mod.class}" unless mod.class == Module
+      raise ArgumentError, "#{mod} should be #{Module} but was #{mod.class}" unless mod.class == Module
       source_files = mod.methods.map { |sym|
         mod.method(sym).source_location.first rescue nil
       }.compact.select { |file|
@@ -57,7 +57,7 @@ module Rubycom
     # @param [Method] method the method to be source
     # @return [String] the source of the specified method
     def self.method_source(method)
-      raise "#{method} should be #{Method} but was #{method.class}" unless [Method].include?(method.class)
+      raise ArgumentError, "#{method} should be #{Method} but was #{method.class}" unless [Method].include?(method.class)
       method.comment + method.source
     end
   end
