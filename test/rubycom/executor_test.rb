@@ -31,7 +31,7 @@ class ExecutorTest < Test::Unit::TestCase
     test_command = UtilTestModule.public_method(:test_command_with_return)
     test_parameters = {}
     result = nil
-    assert_raise(Rubycom::RubycomError) { result = Rubycom::Executor.execute_command(test_command, test_parameters) }
+    assert_raise(Rubycom::ExecutorError) { result = Rubycom::Executor.execute_command(test_command, test_parameters) }
     expected = nil
     assert_equal(expected, result)
   end
@@ -48,7 +48,7 @@ class ExecutorTest < Test::Unit::TestCase
     test_command = UtilTestModule.public_method(:test_command_with_options)
     test_parameters = {:test_option => 'testing_opt'}
     result = nil
-    assert_raise(Rubycom::RubycomError) { result = Rubycom::Executor.execute_command(test_command, test_parameters) }
+    assert_raise(Rubycom::ExecutorError) { result = Rubycom::Executor.execute_command(test_command, test_parameters) }
     expected = nil
     assert_equal(expected, result)
   end

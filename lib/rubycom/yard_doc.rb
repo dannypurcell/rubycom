@@ -13,8 +13,8 @@ module Rubycom
 
     def self.check(commands, source_plugin)
       YARD::Logger.instance.level = YARD::Logger::FATAL
-      raise "#{source_plugin} should be a Module but was #{source_plugin.class}" unless source_plugin.class == Module
-      raise "#{commands} should be an Array but was #{commands.class}" unless commands.class == Array
+      raise ArgumentError, "#{source_plugin} should be a Module but was #{source_plugin.class}" unless source_plugin.class == Module
+      raise ArgumentError, "#{commands} should be an Array but was #{commands.class}" unless commands.class == Array
       [commands, source_plugin]
     end
 
@@ -58,8 +58,8 @@ module Rubycom
       }
     end
 
-    def self.method_doc(method, source_plugin=nil)
-      raise "method should be a Method but was #{method.class}" unless method.class == Method
+    def self.method_doc(method, source_plugin)
+      raise ArgumentError, "method should be a Method but was #{method.class}" unless method.class == Method
       method_param_types = method.parameters.map { |type, sym| {sym => type} }.reduce({}, &:merge)
       if source_plugin.class == YARD::CodeObjects::MethodObject
         doc_obj = source_plugin
@@ -70,9 +70,9 @@ module Rubycom
         doc_obj = YARD::Registry.at(method.to_s)
         doc_obj = YARD::Registry.at("::#{method.to_s}") if doc_obj.nil?
         doc_obj = YARD::Registry.at(method.to_s.split('.').last) if doc_obj.nil?
-        raise "No such method #{method} in the given source." if doc_obj.nil?
+        raise ArgumentError, "No such method #{method} in the given source." if doc_obj.nil?
       else
-        raise "source_plugin should be YARD::CodeObjects::MethodObject|Module but was #{source_plugin.class}"
+        raise ArgumentError, "source_plugin should be YARD::CodeObjects::MethodObject|Module but was #{source_plugin.class}"
       end
       {
           parameters: doc_obj.parameters.map { |k, v|

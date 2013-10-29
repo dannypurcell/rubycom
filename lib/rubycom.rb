@@ -18,8 +18,15 @@ require 'yaml'
 # module.
 module Rubycom
 
-  class RubycomError < StandardError;
+  class RubycomError < StandardError
   end
+  class ArgParseError < RubycomError;
+  end
+  class ExecutorError < RubycomError;
+  end
+  class ParameterExtractError < RubycomError;
+  end
+
 
   # Determines whether the including module was executed by a gem binary
   #
