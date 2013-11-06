@@ -15,9 +15,9 @@ module Rubycom
       args = (arguments.include?('tab_complete')) ? arguments[2..-1] : arguments
       matches = %w()
       if args.nil? || args.empty?
-        matches = command_plugin.get_top_level_commands(base)[base.to_s.to_sym].map { |sym,_| sym.to_s }
+        matches = command_plugin.get_commands(base, false)[base.to_s.to_sym].map { |sym,_| sym.to_s }
       elsif args.length == 1
-        matches = command_plugin.get_top_level_commands(base)[base.to_s.to_sym].map { |sym,_| sym.to_s }.select { |word| !word.match(/^#{args[0]}/).nil? }
+        matches = command_plugin.get_commands(base, false)[base.to_s.to_sym].map { |sym,_| sym.to_s }.select { |word| !word.match(/^#{args[0]}/).nil? }
         if matches.size == 1 && matches[0] == args[0]
           matches = self.tab_complete(Kernel.const_get(args[0].to_sym), args[1..-1], command_plugin)
         end

@@ -18,12 +18,16 @@ require 'yaml'
 # module.
 module Rubycom
 
+  # Base class for all Rubycom errors
   class RubycomError < StandardError
   end
+  # To be thrown in case of an error while parsing arguments
   class ArgParseError < RubycomError;
   end
+  # To be thrown in case of an error while executing a method
   class ExecutorError < RubycomError;
   end
+  # To be thrown in case of an error while extracting parameters
   class ParameterExtractError < RubycomError;
   end
 
@@ -53,7 +57,7 @@ module Rubycom
     nil
   end
 
-  # Main entry point for Rubycom. Uses #run_command! to discover and run commands
+  # Main entry point for Rubycom. Uses #run_command to discover and run commands
   #
   # @param [Module] base this will be used to determine available commands
   # @param [Array] args a String Array representing the command to run followed by arguments to be passed
@@ -75,7 +79,7 @@ module Rubycom
             puts usage
             return usage
           else
-            self.run_command!(base, {}, (args[1..-1] << '-h'))
+            self.run_command(base, {}, (args[1..-1] << '-h'))
             $stderr.puts <<-END.gsub(/^ {12}/, '')
             Default Commands:
               help                 - prints this help page
@@ -84,15 +88,15 @@ module Rubycom
             END
           end
         else
-          self.run_command!(base, {}, args)
+          self.run_command(base, {}, args)
       end
     rescue RubycomError => e
       $stderr.puts e
     end
   end
 
-  # Calls
-  # Uses #load_plugins to reference the modules to be used.
+  # Uses the given plugin_options or built in defaults to call a method on base or one of it's included modules.
+  # Calls #load_plugins to reference the modules to be used.
   #
   # @param [Module] base will be used to determine available commands
   # @param [Hash] plugins_options should have the following keys mapped to Modules which will be called
@@ -100,20 +104,18 @@ module Rubycom
   # @param [Array] args a String Array representing the command to run followed by arguments to be passed
   # @return [Object] the result of calling the method selected by :discover module using the args from the :arguments module
   # matched to parameters by the :parameters module
-  def self.run_command!(base, plugins_options={}, args=[])
-    plugins = self.load_plugins(
-        {
-            arguments: Rubycom::ArgParse,
-            discover: Rubycom::SingletonCommands,
-            parameters: Rubycom::ParameterExtract,
-            executor: Rubycom::Executor,
-            source: Rubycom::Sources,
-            documentation: Rubycom::YardDoc,
-            output: Rubycom::OutputHandler,
-            interface: Rubycom::CommandInterface,
-            error: Rubycom::ErrorHandler,
-        }.merge(plugins_options)
-    )
+  def self.run_command(base, plugins_options={}, args=[])
+    plugins = {
+        arguments: Rubycom::ArgParse,
+        discover: Rubycom::SingletonCommands,
+        parameters: Rubycom::ParameterExtract,
+        executor: Rubycom::Executor,
+        source: Rubycom::Sources,
+        documentation: Rubycom::YardDoc,
+        output: Rubycom::OutputHandler,
+        interface: Rubycom::CommandInterface,
+        error: Rubycom::ErrorHandler,
+    }.merge(plugins_options)
 
     parsed_command_line = plugins[:arguments].parse_command_line(args)
     command = plugins[:discover].discover_command(base, parsed_command_line)
@@ -127,20 +129,6 @@ module Rubycom
       plugins[:error].handle_error(e, cli_output)
     end
     command_result
-  end
-
-  # Maps plugin names to Module references if they are not already such
-  #
-  # @param [Hash] plugins :plugin_name => Module|String|Symbol
-  # @return [Hash] :plugin_name => Module
-  def self.load_plugins(plugins={})
-    plugins.map { |name, plugin|
-      {
-          name => plugin.is_a?(Module) ? plugin : plugin.to_s.split('::').reduce(Kernel) { |mod, next_mod|
-            mod.const_get(next_mod.to_s.to_sym)
-          }
-      }
-    }.reduce({}, &:merge)
   end
 
 end
