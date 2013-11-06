@@ -2,15 +2,26 @@ module Rubycom
   module YardDoc
     require 'yard'
 
+    # Transforms the command to a Hash representing the command and it's documentation
+    #
+    # @param [Array] command a Module or Method to be documented
+    # @param [Module] source_plugin a Module which will be used to retrieve module and method source code
+    # @return [Array] a Hash which is the result calling #map_doc
     def self.document_command(command, source_plugin)
       self.document_commands([command], source_plugin).first[:doc]
     end
 
+    # Transforms each command in commands to a Hash representing the command and it's documentation
+    #
+    # @param [Array] commands a set of Modules and Methods to be documented
+    # @param [Module] source_plugin a Module which will be used to retrieve module and method source code
+    # @return [Array] a set of Hashes which are the result calling #map_doc
     def self.document_commands(commands, source_plugin)
       commands, source_plugin = self.check(commands, source_plugin)
       self.map_doc(commands, source_plugin)
     end
 
+    # Provides upfront checking for this inputs to #document_commands
     def self.check(commands, source_plugin)
       YARD::Logger.instance.level = YARD::Logger::FATAL
       raise ArgumentError, "#{source_plugin} should be a Module but was #{source_plugin.class}" unless source_plugin.class == Module
@@ -18,6 +29,11 @@ module Rubycom
       [commands, source_plugin]
     end
 
+    # Transforms each command in commands to a Hash representing the command and it's documentation
+    #
+    # @param [Array] commands a set of Modules and Methods to be documented
+    # @param [Module] source_plugin a Module which will be used to retrieve module and method source code
+    # @return [Array] a set of Hashes which are the result of calls to #module_doc and #method_doc
     def self.map_doc(commands, source_plugin)
       commands.map { |cmd|
         {
@@ -33,6 +49,12 @@ module Rubycom
       }
     end
 
+    # Extracts elements of source code documentation for the given module. Calls #source_command on the given
+    # source_plugin to retrieve the method's source code.
+    #
+    # @param [Module] mod a Module instance representing the module whose documentation should be parsed
+    # @param [Module] source_plugin a Module which will be used to retrieve module and method source code
+    # @return [Hash] :short_doc => String, :full_doc => String, :sub_command_docs => [ { sub_command_name_symbol => String } ]
     def self.module_doc(mod, source_plugin)
       module_source = source_plugin.source_command(mod)
       YARD::Registry.clear
@@ -58,6 +80,16 @@ module Rubycom
       }
     end
 
+    # Extracts elements of source code documentation for the given method. Calls #source_command on the given source_plugin
+    # to retrieve the method's source code.
+    #
+    # @param [Method] method a Method instance representing the method whose documentation should be parsed
+    # @param [Module|YARD::CodeObjects::MethodObject] source_plugin the Module which will be used to retrieve the
+    # method's source code. Alternately this parameter can be a YARD::CodeObjects::MethodObject which will be used to
+    # instead of looking up the method's source code
+    # @return [Hash] :short_doc => String, :full_doc => String,
+    # :tags => [ { :tag_name => String, :name => String, :types => [String], :text => String  } ],
+    # :parameters => [ { :param_name => String, :type => :req|:opt|:rest, :default => Object, :doc_type => String, :doc => String } ]
     def self.method_doc(method, source_plugin)
       raise ArgumentError, "method should be a Method but was #{method.class}" unless method.class == Method
       method_param_types = method.parameters.map { |type, sym| {sym => type} }.reduce({}, &:merge)

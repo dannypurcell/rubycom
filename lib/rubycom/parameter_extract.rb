@@ -3,13 +3,13 @@ module Rubycom
 
     # Calls #resolve_params with the given parameters after calling #check to assert the state of the inputs
     #
-    # @param [Method] the method whose parameters should be resolved
+    # @param [Method] command the method whose parameters should be resolved
     # @param [Hash] parsed_command_line :args => array of arguments, :opts => { opt_key => opt_val }, :flags => { flag_key => flag_val }
     # @param [Hash] command_doc :parameters => an array consisting of a hash for method parameter where
     #   :param_name => the param name as a string,
     #   :type => :req|:opt|:rest,
     #   :default => the default value for the param
-    # @return [Hash] command.parameters.each => the value for that parameter extracted from command_line or the default in command_doc
+    # @return [Hash] command.parameters.each => the value for that parameter extracted from parsed_command_line or the default in command_doc
     def self.extract_parameters(command, parsed_command_line, command_doc)
       command, parsed_command_line, command_doc = self.check(command, parsed_command_line, command_doc)
       self.resolve_params(command, parsed_command_line, command_doc)
@@ -18,8 +18,8 @@ module Rubycom
     # Provides upfront checking for this inputs to #extract_parameters and raises a ParameterExtractError if
     # parsed_command_line includes a help argument, option, or flag
     #
-    # @param [Method] the method whose parameters should be resolved
-    # @param [Hash] command_line :args => array of arguments, :opts => { opt_key => opt_val }, :flags => { flag_key => flag_val }
+    # @param [Method] command the method whose parameters should be resolved
+    # @param [Hash] parsed_command_line :args => array of arguments, :opts => { opt_key => opt_val }, :flags => { flag_key => flag_val }
     # @param [Hash] command_doc :parameters => an array consisting of a hash for method parameter where
     #   :param_name => the param name as a string,
     #   :type => :req|:opt|:rest,
@@ -61,7 +61,7 @@ module Rubycom
 
     # Matches parameter names in command.parameters to values from command_line or their default values in command_doc
     #
-    # @param [Method] the method whose parameters should be resolved
+    # @param [Method] command the method whose parameters should be resolved
     # @param [Hash] command_line :args => array of arguments, :opts => { opt_key => opt_val }, :flags => { flag_key => flag_val }
     # @param [Hash] command_doc :parameters => an array consisting of a hash for method parameter where
     #   :param_name => the param name as a string,
@@ -134,7 +134,7 @@ module Rubycom
 
     # Creates a long and short name for each symbol in the given params
     #
-    # @params [Array] params a list of Symbols to create names for
+    # @param [Array] params a list of Symbols to create names for
     # @return [Hash] params.each symbol => a Hash where long => string form of symbol and
     # short => the first char in symbol if unique in params or the string form of symbol if not
     def self.get_param_names(params)

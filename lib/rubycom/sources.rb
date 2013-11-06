@@ -2,15 +2,24 @@ module Rubycom
   module Sources
     require 'method_source'
 
+    # Calls #source_commands and filters to the source string of the first command returned
+    #
+    # @param [Array] command the commands whose source should be returned
+    # @return [String] the source code string if the command was a Module or Method. Returns the command otherwise
     def self.source_command(command)
       self.source_commands([command]).first[:source]
     end
 
+    # Checks commands then calls #map_sources
+    #
+    # @param [Array] commands the commands whose source should be returned
+    # @return [Hash] :command => the command from commands, :source => the source code string if the command was a Module or Method
     def self.source_commands(commands)
       com = self.check(commands)
       self.map_sources(com)
     end
 
+    # Provides upfront checking for this inputs to #source_commands
     def self.check(commands)
       raise ArgumentError, "#{commands} should be an Array but was #{commands.class}" unless commands.class == Array
       commands.each { |cmd|
@@ -18,6 +27,11 @@ module Rubycom
       }
     end
 
+    # Maps each command in commands to a hash containing the command and the source string for that command.
+    # Uses #module_source and #method_source to look up source strings when command is a Module or Method.
+    #
+    # @param [Array] commands the commands whose source should be returned
+    # @return [Hash] :command => the command from commands, :source => the source code string if the command was a Module or Method
     def self.map_sources(commands)
       commands.map { |cmd|
         {
