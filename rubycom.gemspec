@@ -8,8 +8,8 @@ Gem::Specification.new do |spec|
   spec.version       = Rubycom::VERSION
   spec.authors       = ['Danny Purcell']
   spec.email         = %w(d.purcell.jr+rubycom@gmail.com)
-  spec.description   = %q{Allows command-line access for all singleton methods in an including class. Reads Yard style documentation for command line help output. Uses Yaml for parsing options. Allows the user to make a command-line tool by simply including Rubycom at the bottom.}
-  spec.summary       = %q{Converts singleton methods to command-line functions upon inclusion.}
+  spec.description   = %q{Enables command-line access for methods in an including module. Reads method documentation for command line help output. Parses command line options and flags. Turn your library into a command-line app by simply including Rubycom.}
+  spec.summary       = %q{Turn your library into a command-line app by simply including Rubycom.}
   spec.homepage      = 'http://dannypurcell.github.io/rubycom'
   spec.license       = 'MIT'
 

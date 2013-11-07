@@ -100,26 +100,12 @@ class SingletonCommandsTest < Test::Unit::TestCase
   def test_get_commands
     test_mod = UtilTestComposite
     result = Rubycom::SingletonCommands.get_commands(test_mod)
-    expected = {:UtilTestComposite =>
-                    {:UtilTestModule =>
-                         {:test_command => :method,
-                          :test_command_all_options => :method,
-                          :test_command_arg_arr => :method,
-                          :test_command_arg_false => :method,
-                          :test_command_arg_hash => :method,
-                          :test_command_arg_named_arg => :method,
-                          :test_command_arg_timestamp => :method,
-                          :test_command_mixed_options => :method,
-                          :test_command_nil_option=>:method,
-                          :test_command_no_docs => :method,
-                          :test_command_options_arr => :method,
-                          :test_command_with_arg => :method,
-                          :test_command_with_args => :method,
-                          :test_command_with_options => :method,
-                          :test_command_with_return => :method},
-                     :UtilTestNoSingleton => {},
-                     :test_composite_command => :method}}
-    assert_equal(expected, result)
+    result.each{|k, v|
+      assert(k.class == Symbol, "each key should be a symbol")
+      UtilTestComposite.included_modules.include?(k)
+      assert([Hash, Symbol].include?(v.class), "each value should be a Hash or a Symbol")
+      assert(v == :method, "if the returned value is not a hash then it should be the symbol :method") if v.class == Symbol
+    }
   end
 
   def test_get_commands_all_false

@@ -79,7 +79,7 @@ module Rubycom
             puts usage
             return usage
           else
-            self.run_command(base, {}, (args[1..-1] << '-h'))
+            self.run_command(base, (args[1..-1] << '-h'))
             $stderr.puts <<-END.gsub(/^ {12}/, '')
             Default Commands:
               help                 - prints this help page
@@ -88,7 +88,7 @@ module Rubycom
             END
           end
         else
-          self.run_command(base, {}, args)
+          self.run_command(base, args)
       end
     rescue RubycomError => e
       $stderr.puts e
@@ -99,22 +99,22 @@ module Rubycom
   # Calls #load_plugins to reference the modules to be used.
   #
   # @param [Module] base will be used to determine available commands
-  # @param [Hash] plugins_options should have the following keys mapped to Modules which will be called
-  # :arguments, :discover, :parameters, :executor, :source, :documentation, :output, :interface, :error
   # @param [Array] args a String Array representing the command to run followed by arguments to be passed
+  # @param [Hash] plugins_options should have the following keys mapped to Modules which will be called
+  # :arguments, :discover, :documentation, :source, :parameters, :executor, :output, :interface, :error
   # @return [Object] the result of calling the method selected by :discover module using the args from the :arguments module
   # matched to parameters by the :parameters module
-  def self.run_command(base, plugins_options={}, args=[])
+  def self.run_command(base, args=[], plugins_options={})
     plugins = {
         arguments: Rubycom::ArgParse,
         discover: Rubycom::SingletonCommands,
+        documentation: Rubycom::YardDoc,
+        source: Rubycom::Sources,
         parameters: Rubycom::ParameterExtract,
         executor: Rubycom::Executor,
-        source: Rubycom::Sources,
-        documentation: Rubycom::YardDoc,
         output: Rubycom::OutputHandler,
         interface: Rubycom::CommandInterface,
-        error: Rubycom::ErrorHandler,
+        error: Rubycom::ErrorHandler
     }.merge(plugins_options)
 
     parsed_command_line = plugins[:arguments].parse_command_line(args)

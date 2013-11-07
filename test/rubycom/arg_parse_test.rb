@@ -97,10 +97,24 @@ class ArgParseTest < Test::Unit::TestCase
     assert_equal(expected, result)
   end
 
-  def test_parse_bad_opt
+  def test_parse_array_opt
+    test_arg = ['--test_opt', "1,2,3"]
+    result = Rubycom::ArgParse.parse_command_line(test_arg)
+    expected = {:opts=>{"test_opt"=>[1,2,3]}}
+    assert_equal(expected, result)
+  end
+
+  def test_parse_alternate_array_opt
+    test_arg = ['--test_opt', "[1,2,3]"]
+    result = Rubycom::ArgParse.parse_command_line(test_arg)
+    expected = {:opts=>{"test_opt"=>[1,2,3]}}
+    assert_equal(expected, result)
+  end
+
+  def test_parse_unrecognized_array_opt
     test_arg = ['--test_opt', "[1,2,\"3]"]
     result = Rubycom::ArgParse.parse_command_line(test_arg)
-    expected = {:opts=>{"test_opt"=>["[1", 2, "\"3]"]}}
+    expected = {:opts=>{"test_opt"=>"[1,2,\"3]"}}
     assert_equal(expected, result)
   end
 

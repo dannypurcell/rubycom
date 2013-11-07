@@ -87,7 +87,7 @@ module Rubycom
     class ArgParser < Parslet::Parser
       rule(:space) { match('\s').repeat(1) }
       rule(:eq) { match('=') }
-      rule(:separator) { (eq | (space >> eq >> space) | space) }
+      rule(:separator) { (eq | (space >> eq >> space) | (space >> eq) | (eq >> space) | space) }
       rule(:escape_char) { match(/\\/) }
       rule(:escaped_char) { escape_char >> any }
       rule(:d_quote) { escape_char.absent? >> match(/"/) }
@@ -102,12 +102,12 @@ module Rubycom
 
       rule(:short) { match('-') }
       rule(:long) { short >> short }
-      rule(:neg_opt_prefix) { (long | short) >> (str('no-') | str('NO-')) >> word }
-      rule(:opt_prefix) { (long | short) >> word }
+      rule(:neg_opt_prefix) { (long | short) >> str('-').absent? >> (str('no-') | str('NO-')) >> word }
+      rule(:opt_prefix) { (long | short) >> str('-').absent? >> word }
 
       rule(:arg) { any.repeat }
       rule(:flag) { (neg_opt_prefix | opt_prefix) }
-      rule(:opt) { opt_prefix.as(:key) >> separator.as(:sep) >> (list | word).as(:val) }
+      rule(:opt) { opt_prefix.as(:key) >> separator.as(:sep) >> any.repeat.as(:val) }
 
       rule(:expression) { opt.as(:opt) | flag.as(:flag) | arg.as(:arg) }
 
@@ -162,7 +162,9 @@ module Rubycom
     # @param [Hash] subtree a structure identified as an option, must have keys :key, :sep, :val
     # @return [Object] the result of a call to #load_string
     def self.transform_opt(subtree)
-      value = self.load_opt_value(subtree[:val].str.split(','))
+      val = subtree[:val].str
+      val = val.split(',') unless (val.start_with?('[') && val.end_with?(']'))
+      value = self.load_opt_value(val)
       {
           subtree[:key].str.reverse.chomp('-').chomp('-').reverse => value
       }
@@ -173,7 +175,11 @@ module Rubycom
     # @param [Array] value containing the string(s) to be loaded
     # @return [Object] the result of a call to #load_string
     def self.load_opt_value(value)
-      (value.length == 1) ? self.load_string(value.first) : value.map { |v| self.load_string(v) }
+      if value.class == Array
+        (value.length == 1) ? self.load_string(value.first) : value.map { |v| self.load_string(v) }
+      else
+        self.load_string(value)
+      end
     end
 
     # Uses YAML.load to resolve the ruby type for the given string

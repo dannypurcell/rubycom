@@ -206,6 +206,24 @@ class RubycomTest < Test::Unit::TestCase
     assert_equal(expected, result)
   end
 
+  def test_full_run_mixed_names_with_shorts
+    mod = 'util_test_module.rb'
+    command = 'test_command_mixed_names'
+    args = "testing_arg \"[test1, test2]\" -opt='testing_option' -h =\"{a: 'test_hsh_arg'}\" --bool true some other args"
+    expected = 'arg_test=testing_arg arr=["test1", "test2"] opt=testing_option hsh={"a"=>"test_hsh_arg"} bool=true rest_test=["some", "other", "args"]'+"\n"
+    result = %x(ruby #{File.expand_path(File.dirname(__FILE__))}/#{mod} #{command} #{args})
+    assert_equal(expected, result)
+  end
+
+  def test_full_run_mixed_names_all_separators
+    mod = 'util_test_module.rb'
+    command = 'test_command_mixed_names'
+    args = "testing_arg --arr = \"[test1, test2]\" -opt= 'testing_option' -h =\"{a: 'test_hsh_arg'}\" --bool true some other args"
+    expected = 'arg_test=testing_arg arr=["test1", "test2"] opt=testing_option hsh={"a"=>"test_hsh_arg"} bool=true rest_test=["some", "other", "args"]'+"\n"
+    result = %x(ruby #{File.expand_path(File.dirname(__FILE__))}/#{mod} #{command} #{args})
+    assert_equal(expected, result)
+  end
+
   def test_full_run_args_for_opts
     mod = 'util_test_module.rb'
     command = 'test_command_mixed_options'

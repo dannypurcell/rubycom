@@ -93,7 +93,7 @@ module UtilTestModule
   # @param [Timestamp] test_time a test Timestamp argument
   # @return [Hash] a hash including the given argument
   def self.test_command_arg_timestamp(test_time)
-    {test_time: test_time}
+    {:test_time => test_time}
   end
 
   # A test_command with a Boolean argument
@@ -124,6 +124,18 @@ module UtilTestModule
   # @param [Fixnum] test_opt
   def self.test_command_mixed_options(test_arg, test_arr=[], test_opt='test_opt_arg', test_hsh={}, test_bool=true, *test_rest)
     "test_arg=#{test_arg} test_arr=#{test_arr} test_opt=#{test_opt} test_hsh=#{test_hsh} test_bool=#{test_bool} test_rest=#{test_rest}"
+  end
+
+  # A test_command with several mixed options with varying names
+  #
+  # @param [Object] arg_test anything
+  # @param [Array] arr an array of things
+  # @param [String] opt an optional string
+  # @param [Hash] hsh a hash representing some test keys and values
+  # @param [TrueClass|FalseClass] bool a true or false
+  # @param [Array] rest_test everything else
+  def self.test_command_mixed_names(arg_test, arr=[], opt='test_opt_arg', hsh={}, bool=true, *rest_test)
+    "arg_test=#{arg_test} arr=#{arr} opt=#{opt} hsh=#{hsh} bool=#{bool} rest_test=#{rest_test}"
   end
 
   include Rubycom
