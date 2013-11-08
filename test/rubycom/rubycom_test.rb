@@ -278,15 +278,6 @@ class RubycomTest < Test::Unit::TestCase
     assert_equal(expected, result)
   end
 
-  def test_full_run_sharp_arg
-    mod = 'util_test_module.rb'
-    command = 'test_command_mixed_options'
-    args = '#' + " \"[test1, test2]\" -test_opt='testing_option' \"{a: 'test_hsh_arg'}\" -test_bool=true some other args"
-    expected = 'test_arg=# test_arr=["test1", "test2"] test_opt=testing_option test_hsh={"a"=>"test_hsh_arg"} test_bool=true test_rest=["some", "other", "args"]'+"\n"
-    result = %x(ruby #{File.expand_path(File.dirname(__FILE__))}/#{mod} #{command} #{args})
-    assert_equal(expected, result)
-  end
-
   def test_full_run_bang_arg
     mod = 'util_test_module.rb'
     command = 'test_command_mixed_options'
