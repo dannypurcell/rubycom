@@ -8,9 +8,11 @@ module Rubycom
     # @param [Hash] command_doc keys should include :full_doc and any keys required by #build_usage and #build_details
     # @return [String] a structured string suitable for printing to the console as a command usage document
     def self.build_interface(command, command_doc)
+      return '' if command.nil?
+      return '' if command_doc.nil?
       "#{self.build_usage(command, command_doc)}\n"+
       "Description:\n"+
-      "#{command_doc.fetch(:full_doc).split("\n").map{|line| "  #{line}"}.join("\n").chomp}\n"+
+      "#{command_doc.fetch(:full_doc, '').split("\n").map{|line| "  #{line}"}.join("\n").chomp}\n"+
       "#{self.build_details(command, command_doc)}"
     end
 
@@ -20,6 +22,7 @@ module Rubycom
     # @param [Hash] command_doc keys should include any keys required by #build_options
     # @return [String] a structured text representation of usage patterns for the given command and doc hash
     def self.build_usage(command, command_doc)
+      return '' if command.nil?
       command_use = if File.basename($0, File.extname($0)).gsub("_", '') == command.name.to_s.downcase
                       File.basename($0)
                     else
@@ -34,7 +37,7 @@ module Rubycom
     # @param [Hash] command_doc keys should include :parameters and each parameter should be a hash including keys :type, :param_name, :default
     # @return [String] a structured text representation of usage patterns for the given command and doc hash
     def self.build_options(command, command_doc)
-      raise ArgumentError, "command_doc should be a Hash but was #{command_doc.class}" unless command_doc.class == Hash
+      return '' if command_doc.nil?
       if command.class == Module
         "<command> [args]"
       elsif command.class == Method

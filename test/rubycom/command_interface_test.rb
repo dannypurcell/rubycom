@@ -8,6 +8,50 @@ require 'test/unit'
 
 class CommandInterfaceTest < Test::Unit::TestCase
 
+  def test_build_interface_nil_command
+    test_command = nil
+    test_doc = {
+        :short_doc => "A command module used for testing.",
+        :full_doc => "A command module used for testing\n\nThis module contains most of the test case input methods.",
+        :sub_command_docs => {
+            :non_command => "A test non-command method.",
+            :test_command => "A basic test command.",
+            :test_command_no_docs => "",
+            :test_command_with_arg => "A test_command with one arg.",
+            :test_command_arg_named_arg => "A test_command with an arg named arg.",
+            :test_command_with_args => "A test_command with two args.",
+            :test_command_with_options => "A test_command with an optional argument.",
+            :test_command_all_options => "A test_command with all optional arguments.",
+            :test_command_options_arr => "A test_command with an options array.",
+            :test_command_with_return => "A test_command with a return argument.",
+            :test_command_arg_timestamp => "A test_command with a Timestamp argument and an unnecessarily long description which should overflow when it tries to line up with other descriptions.",
+            :test_command_arg_false => "A test_command with a Boolean argument.",
+            :test_command_arg_arr => "A test_command with an array argument.",
+            :test_command_arg_hash => "A test_command with an Hash argument.",
+            :test_command_mixed_options => "A test_command with several mixed options."
+        }
+    }
+    result = Rubycom::CommandInterface.build_interface(test_command, test_doc)
+
+    assert_equal('', result.gsub(/\s|\n|\r\n/,''), "#{result} should be empty")
+  end
+
+  def test_build_interface_nil_doc
+    test_command = UtilTestModule
+    test_doc = nil
+    result = Rubycom::CommandInterface.build_interface(test_command, test_doc)
+
+    assert_equal('', result.gsub(/\s|\n|\r\n/,''), "#{result} should be empty")
+  end
+
+  def test_build_interface_empty_doc
+    test_command = UtilTestModule
+    test_doc = {}
+    result = Rubycom::CommandInterface.build_interface(test_command, test_doc)
+
+    assert_equal(result.gsub(/\s|\n|\r\n/,''), "Usage:UtilTestModule<command>[args]Description:","#{result} should be empty")
+  end
+
   def test_build_interface_module
     test_command = UtilTestModule
     test_doc = {

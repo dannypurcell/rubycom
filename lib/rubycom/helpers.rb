@@ -42,6 +42,7 @@ module Rubycom
     # @return [Array] a list of strings comprised of command_name, separator, and description
     # formatted to line up vertically
     def self.format_command_list(command_doc, desc_width = 90, indent ='')
+      return [] if command_doc.nil?
       raise ArgumentError, "command_doc should be a Hash but was a #{command_doc.class}" unless command_doc.class == Hash
       command_doc = {} if command_doc.nil?
       longest_command_name = command_doc.keys.max { |t, n| t.to_s.length <=> n.to_s.length }
