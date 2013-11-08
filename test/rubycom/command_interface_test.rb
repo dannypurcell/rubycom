@@ -31,17 +31,19 @@ class CommandInterfaceTest < Test::Unit::TestCase
             :test_command_mixed_options => "A test_command with several mixed options."
         }
     }
-    result = Rubycom::CommandInterface.build_interface(test_command, test_doc)
+    result = nil
+    assert_raise(ArgumentError) { result = Rubycom::CommandInterface.build_interface(test_command, test_doc) }
 
-    assert_equal('', result.gsub(/\s|\n|\r\n/,''), "#{result} should be empty")
+    assert_equal(nil, result, "#{result} should be nil")
   end
 
   def test_build_interface_nil_doc
     test_command = UtilTestModule
     test_doc = nil
-    result = Rubycom::CommandInterface.build_interface(test_command, test_doc)
+    result = nil
+    assert_raise(ArgumentError) { result = Rubycom::CommandInterface.build_interface(test_command, test_doc) }
 
-    assert_equal('', result.gsub(/\s|\n|\r\n/,''), "#{result} should be empty")
+    assert_equal(nil, result, "#{result} should be nil")
   end
 
   def test_build_interface_empty_doc
