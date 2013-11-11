@@ -133,66 +133,76 @@ module Rubycom
     # @param [Hash|Parslet::Slice] val a possibly nested Hash structure or a Slice. Hashes are returned by the parser when
     # it matches a complex pattern, a Slice will be returned when the matched pattern is not tree like.
     # @return [Hash] :arg => value | :opt|:flag => a Hash mapping keys to values
-    def self.transform(matched_type, val)
-      case matched_type
-        when :arg
-          val = Rubycom::ArgParse.transform_arg(val.str.strip)
-        when :opt
-          val = Rubycom::ArgParse.transform_opt(val)
-        when :flag
-          val = Rubycom::ArgParse.transform_flag(val.str.strip)
-        else
-          val = val.str.strip
-      end
+    def self.transform(matched_type, val, loaders={}, transformers={})
+      loader_methods = {
+          arg: Rubycom::ArgParse.public_method(:load_string),
+          opt: Rubycom::ArgParse.public_method(:load_opt_value),
+          flag: Rubycom::ArgParse.public_method(:load_flag_value)
+      }.merge(loaders)
+      transforms = {
+          arg: Rubycom::ArgParse.public_method(:transform_arg),
+          opt: Rubycom::ArgParse.public_method(:transform_opt),
+          flag: Rubycom::ArgParse.public_method(:transform_flag)
+      }.merge(transformers)
+
       {
-          matched_type => val
+          matched_type => if [:arg,:opt,:flag].include?(matched_type)
+                            transforms[matched_type].call(val, loader_methods[matched_type])
+                          else
+                            val.str.strip
+                          end
       }
     end
 
-    # Uses #load_string to resolve the ruby type for the given string
+    # Uses the given arg_loader to resolve the ruby type for the given string
     #
-    # @param [String] match_string a string identified as an argument
-    # @return [Object] the result of a call to #load_string
-    def self.transform_arg(match_string)
-      self.load_string(match_string)
+    # @param [String|Parslet::Slice] match_string a string identified as an argument
+    # @param [Method|Proc] arg_loader called to load the value(s)
+    # @return [Object] the result of a call to the given arg_loader
+    def self.transform_arg(match_string, arg_loader=Rubycom::ArgParse.public_method(:load_string))
+      match_string = match_string.str.strip if match_string.class == Parslet::Slice
+      arg_loader.call(match_string)
     end
 
-    # Uses #load_string to resolve the ruby type for the value in the given Hash
+    # Uses the given opt_loader to resolve the ruby type for the value in the given Hash
     #
     # @param [Hash] subtree a structure identified as an option, must have keys :key, :sep, :val
-    # @return [Object] the result of a call to #load_string
-    def self.transform_opt(subtree)
+    # @param [Method|Proc] opt_loader called to load the option value(s)
+    # @return [Hash] mapping the option key to it's loaded value
+    def self.transform_opt(subtree, opt_loader=Rubycom::ArgParse.public_method(:load_opt_value))
       val = subtree[:val].str
       val = val.split(',') unless (val.start_with?('[') && val.end_with?(']'))
-      value = self.load_opt_value(val)
+      value = opt_loader.call(val)
       {
           subtree[:key].str.reverse.chomp('-').chomp('-').reverse => value
       }
     end
 
-    # Uses #load_string to load a single string or array of strings
+    # Calls the given loader to load a single string or array of strings
     #
     # @param [Array] value containing the string(s) to be loaded
+    # @param [Method|Proc] loader called to load the value(s)
     # @return [Object] the result of a call to #load_string
-    def self.load_opt_value(value)
+    def self.load_opt_value(value, loader=Rubycom::ArgParse.public_method(:load_string))
       if value.class == Array
-        (value.length == 1) ? self.load_string(value.first) : value.map { |v| self.load_string(v) }
+        (value.length == 1) ? loader.call(value.first) : value.map { |v| loader.call(v) }
       else
-        self.load_string(value)
+        loader.call(value)
       end
     end
 
-    # Uses YAML.load to resolve the ruby type for the given string
+    # Uses the given loader to resolve the ruby type for the given string
     #
     # @param [String] string to be loaded
-    # @return [Object] the result of a call to YAML.load(string) or the given string if it could not be parsed
-    def self.load_string(string)
+    # @param [Method|Proc] loader called to load the string
+    # @return [Object] the result of a call to the loader or the given string if it could not be parsed
+    def self.load_string(string, loader=YAML.public_method(:load))
       if string.start_with?('#') || string.start_with?('!')
         result = string
       else
         begin
-          result = YAML.load(string)
-        rescue Exception => e
+          result = loader.call(string)
+        rescue Exception
           result = string
         end
       end
@@ -201,23 +211,22 @@ module Rubycom
 
     # Resolves the type and values for the given flag string
     #
-    # @param [String] match_string a string identified as a flag, should start with a - or -- and contain no spaces
+    # @param [String|Parslet::Slice] match_string a string identified as a flag, should start with a - or -- and contain no spaces
     # @return [Hash] flag_key(s) => true|false | an array of true|false if there were multiple mentions of the same short flag key
-    def self.transform_flag(match_string)
+    def self.transform_flag(match_string, loader=Rubycom::ArgParse.public_method(:load_flag_value))
+      match_string = match_string.str.strip if match_string.class == Parslet::Slice
       if match_string.start_with?('--')
         long_flag = match_string.reverse.chomp('-').chomp('-').reverse
         long_flag_key = long_flag.sub(/no-|NO-/, '')
-        long_flag_val = (long_flag.start_with?('no-')||long_flag.start_with?('NO-')) ? false : true
         {
-            long_flag_key => long_flag_val
+            long_flag_key => loader.call(long_flag)
         }
       else
         short_flag = match_string.reverse.chomp('-').reverse
         short_flag_key = short_flag.sub(/no-|NO-/, '')
-        short_flag_val = (short_flag.start_with?('no-')||short_flag.start_with?('NO-')) ? false : true
         short_flag_key.split(//).map { |k|
           {
-              k => short_flag_val
+              k => loader.call(short_flag)
           }
         }.reduce({}) { |acc, n|
           acc.update(n) { |_, old, new|
@@ -229,6 +238,14 @@ module Rubycom
           }
         }
       end
+    end
+
+    # Resolves the given flag to true or false as appropriate.
+    #
+    # @param [String] flag string representing a flag without the proceeding dashes
+    # @return [Boolean] FalseClass if the flag starts with a no- TrueClass otherwise
+    def self.load_flag_value(flag)
+      (flag.start_with?('no-') || flag.start_with?('NO-')) ? false : true
     end
 
   end

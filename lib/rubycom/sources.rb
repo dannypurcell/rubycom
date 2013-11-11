@@ -23,7 +23,7 @@ module Rubycom
     def self.check(commands)
       raise ArgumentError, "#{commands} should be an Array but was #{commands.class}" unless commands.class == Array
       commands.each { |cmd|
-        raise ArgumentError, "#{cmd} should be a Module, Method, or String but was #{cmd.class}" unless [Module, Method, String].include?(cmd.class)
+        raise ArgumentError, "#{cmd} should be a Module, Method, Symbol, or String but was #{cmd.class}" unless [Module, Method, Symbol, String].include?(cmd.class)
       }
     end
 
@@ -40,6 +40,11 @@ module Rubycom
                       self.module_source(cmd)
                     elsif cmd.class == Method
                       self.method_source(cmd)
+                    elsif cmd.class == Symbol || cmd.class == String
+                      mod = cmd.to_s.split('::').reduce(Kernel){|last_mod, next_mod|
+                        last_mod.const_get(next_mod.to_s.to_sym)
+                      } rescue cmd
+                      self.module_source(mod)
                     else
                       cmd
                     end
@@ -55,7 +60,7 @@ module Rubycom
     # @param [Module] mod the module to be sourced
     # @return [String] a string representing the source of the given module or an empty string if no source file could be located
     def self.module_source(mod)
-      raise ArgumentError, "#{mod} should be #{Module} but was #{mod.class}" unless mod.class == Module
+      return mod unless mod.class == Module
       source_files = mod.singleton_methods(true).select { |sym| ![:included, :extended].include?(sym) }.map { |sym|
         mod.method(sym).source_location.first rescue nil
       }.compact.uniq
@@ -77,7 +82,7 @@ module Rubycom
     # @param [Method] method the method to be source
     # @return [String] the source of the specified method
     def self.method_source(method)
-      raise ArgumentError, "#{method} should be #{Method} but was #{method.class}" unless [Method].include?(method.class)
+      return method unless method.class == Method
       method.comment + method.source
     end
   end

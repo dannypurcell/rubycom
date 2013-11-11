@@ -16,8 +16,8 @@ class YardDocTest < Test::Unit::TestCase
         UtilTestModule.public_method(:test_command),
         "test_extra_arg"
     ]
-    test_source_plugin = Rubycom::Sources
-    result = Rubycom::YardDoc.document_commands(test_commands, test_source_plugin)
+    test_source_fn = Rubycom::Sources.public_method(:source_command)
+    result = Rubycom::YardDoc.document_commands(test_commands, test_source_fn)
     assert(result.class == Array, "result should be an array")
     result.each{|h|
       assert(h.class == Hash, "each command in the result should be a Hash. #{h}")
@@ -61,8 +61,8 @@ class YardDocTest < Test::Unit::TestCase
 
   def test_document_command_command_run
     test_command = UtilTestModule.public_method(:test_command_with_return)
-    test_source_plugin = Rubycom::Sources
-    result = Rubycom::YardDoc.document_command(test_command, test_source_plugin)
+    test_source_fn = Rubycom::Sources.public_method(:source_command)
+    result = Rubycom::YardDoc.document_command(test_command, test_source_fn)
     assert(result.has_key?(:full_doc), "each doc hash should respond to :full_doc. #{result}")
     assert(result.has_key?(:short_doc), "each doc hash should respond to :short_doc. #{result}")
     assert(result.has_key?(:parameters), "if the command is a method then the :doc has should respond to :parameters. #{result}")
@@ -87,8 +87,8 @@ class YardDocTest < Test::Unit::TestCase
 
   def test_document_command_command_run_rest
     test_command = UtilTestModule.public_method(:test_command_mixed_options)
-    test_source_plugin = Rubycom::Sources
-    result = Rubycom::YardDoc.document_command(test_command, test_source_plugin)
+    test_source_fn = Rubycom::Sources.public_method(:source_command)
+    result = Rubycom::YardDoc.document_command(test_command, test_source_fn)
     assert(result.has_key?(:full_doc), "each doc hash should respond to :full_doc. #{result}")
     assert(result.has_key?(:short_doc), "each doc hash should respond to :short_doc. #{result}")
     assert(result.has_key?(:parameters), "if the command is a method then the :doc has should respond to :parameters. #{result}")
@@ -116,8 +116,8 @@ class YardDocTest < Test::Unit::TestCase
 
   def test_document_command_run_module
     test_command = UtilTestModule
-    test_source_plugin = Rubycom::Sources
-    result = Rubycom::YardDoc.document_command(test_command, test_source_plugin)
+    test_source_fn = Rubycom::Sources.public_method(:source_command)
+    result = Rubycom::YardDoc.document_command(test_command, test_source_fn)
     assert(result.has_key?(:sub_command_docs), "if the command is a module then the :doc has should respond to :sub_command_docs #{result}")
     assert(result[:sub_command_docs].class == Hash, "sub_command_docs should be a Hash. #{result[:sub_command_docs]}")
     result[:sub_command_docs].each{|k,v|
@@ -128,8 +128,8 @@ class YardDocTest < Test::Unit::TestCase
 
   def test_document_command_run_composite
     test_command = UtilTestComposite
-    test_source_plugin = Rubycom::Sources
-    result = Rubycom::YardDoc.document_command(test_command, test_source_plugin)
+    test_source_fn = Rubycom::Sources.public_method(:source_command)
+    result = Rubycom::YardDoc.document_command(test_command, test_source_fn)
     expected = {
         :full_doc => "",
         :short_doc => "",
@@ -144,8 +144,8 @@ class YardDocTest < Test::Unit::TestCase
 
   def test_document_command_run_composite_command
     test_command = UtilTestComposite.public_method(:test_composite_command)
-    test_source_plugin = Rubycom::Sources
-    result = Rubycom::YardDoc.document_command(test_command, test_source_plugin)
+    test_source_fn = Rubycom::Sources.public_method(:source_command)
+    result = Rubycom::YardDoc.document_command(test_command, test_source_fn)
     expected = {
         :full_doc => "A test_command in a composite console",
         :parameters => [

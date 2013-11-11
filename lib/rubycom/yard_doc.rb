@@ -16,32 +16,32 @@ module Rubycom
     # @param [Array] commands a set of Modules and Methods to be documented
     # @param [Module] source_plugin a Module which will be used to retrieve module and method source code
     # @return [Array] a set of Hashes which are the result calling #map_doc
-    def self.document_commands(commands, source_plugin)
-      commands, source_plugin = self.check(commands, source_plugin)
-      self.map_doc(commands, source_plugin)
+    def self.document_commands(commands, source_fn)
+      commands, source_fn = self.check(commands, source_fn)
+      self.map_doc(commands, source_fn)
     end
 
     # Provides upfront checking for this inputs to #document_commands
-    def self.check(commands, source_plugin)
+    def self.check(commands, source_fn)
       YARD::Logger.instance.level = YARD::Logger::FATAL
-      raise ArgumentError, "#{source_plugin} should be a Module but was #{source_plugin.class}" unless source_plugin.class == Module
+      raise ArgumentError, "#{source_fn} should be a Method or Proc but was #{source_fn.class}" unless [Method, Proc].include?(source_fn.class)
       raise ArgumentError, "#{commands} should be an Array but was #{commands.class}" unless commands.class == Array
-      [commands, source_plugin]
+      [commands, source_fn]
     end
 
     # Transforms each command in commands to a Hash representing the command and it's documentation
     #
     # @param [Array] commands a set of Modules and Methods to be documented
-    # @param [Module] source_plugin a Module which will be used to retrieve module and method source code
+    # @param [Method|Proc] source_fn used to retrieve module and method source code
     # @return [Array] a set of Hashes which are the result of calls to #module_doc and #method_doc
-    def self.map_doc(commands, source_plugin)
+    def self.map_doc(commands, source_fn)
       commands.map { |cmd|
         {
             command: cmd,
             doc: if cmd.class == Module
-                   self.module_doc(cmd, source_plugin)
+                   self.module_doc(cmd, source_fn)
                  elsif cmd.class == Method
-                   self.method_doc(cmd, source_plugin)
+                   self.method_doc(cmd, source_fn)
                  else
                    {short_doc: '', full_doc: ''}
                  end
@@ -53,10 +53,10 @@ module Rubycom
     # source_plugin to retrieve the method's source code.
     #
     # @param [Module] mod a Module instance representing the module whose documentation should be parsed
-    # @param [Module] source_plugin a Module which will be used to retrieve module and method source code
+    # @param [Method] source_fn a Module which will be used to retrieve module and method source code
     # @return [Hash] :short_doc => String, :full_doc => String, :sub_command_docs => [ { sub_command_name_symbol => String } ]
-    def self.module_doc(mod, source_plugin)
-      module_source = source_plugin.source_command(mod)
+    def self.module_doc(mod, source_fn)
+      module_source = source_fn.call(mod)
       YARD::Registry.clear
       YARD.parse_string(module_source.to_s)
       doc_obj = YARD::Registry.at(mod.to_s)
@@ -70,7 +70,7 @@ module Rubycom
             }
           }.reduce({}, &:merge).merge(
               doc_obj.mixins.select { |doc_mod| doc_mod.name != :Rubycom }.map { |doc_mod|
-                YARD.parse_string(source_plugin.source_command(Kernel.const_get(doc_mod.name)))
+                YARD.parse_string(source_fn.call(doc_mod.name).to_s)
                 sub_doc_obj = YARD::Registry.at(doc_mod.to_s)
                 {
                     doc_mod.name => (sub_doc_obj.nil?) ? '' : sub_doc_obj.docstring.summary
@@ -84,27 +84,27 @@ module Rubycom
     # to retrieve the method's source code.
     #
     # @param [Method] method a Method instance representing the method whose documentation should be parsed
-    # @param [Module|YARD::CodeObjects::MethodObject] source_plugin the Module which will be used to retrieve the
-    # method's source code. Alternately this parameter can be a YARD::CodeObjects::MethodObject which will be used to
-    # instead of looking up the method's source code
+    # @param [Method|Proc|YARD::CodeObjects::MethodObject] source_fn called to retrieve the method's source code.
+    # Alternately this parameter can be a YARD::CodeObjects::MethodObject which will be used instead of looking
+    # up the method's source code
     # @return [Hash] :short_doc => String, :full_doc => String,
     # :tags => [ { :tag_name => String, :name => String, :types => [String], :text => String  } ],
     # :parameters => [ { :param_name => String, :type => :req|:opt|:rest, :default => Object, :doc_type => String, :doc => String } ]
-    def self.method_doc(method, source_plugin)
+    def self.method_doc(method, source_fn)
       raise ArgumentError, "method should be a Method but was #{method.class}" unless method.class == Method
       method_param_types = method.parameters.map { |type, sym| {sym => type} }.reduce({}, &:merge)
-      if source_plugin.class == YARD::CodeObjects::MethodObject
-        doc_obj = source_plugin
-      elsif source_plugin.class == Module
+      if source_fn.class == YARD::CodeObjects::MethodObject
+        doc_obj = source_fn
+      elsif source_fn.is_a?(Proc) || source_fn.is_a?(Method)
         YARD::Registry.clear
-        YARD.parse_string(source_plugin.source_command(method))
+        YARD.parse_string(source_fn.call(method))
         method = method.name if method.class == Method
         doc_obj = YARD::Registry.at(method.to_s)
         doc_obj = YARD::Registry.at("::#{method.to_s}") if doc_obj.nil?
         doc_obj = YARD::Registry.at(method.to_s.split('.').last) if doc_obj.nil?
         raise ArgumentError, "No such method #{method} in the given source." if doc_obj.nil?
       else
-        raise ArgumentError, "source_plugin should be YARD::CodeObjects::MethodObject|Module but was #{source_plugin.class}"
+        raise ArgumentError, "source_plugin should be YARD::CodeObjects::MethodObject|Method but was #{source_fn.class}"
       end
       {
           parameters: doc_obj.parameters.map { |k, v|

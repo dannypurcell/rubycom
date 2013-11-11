@@ -95,40 +95,62 @@ module Rubycom
     end
   end
 
-  # Uses the given plugin_options or built in defaults to call a method on base or one of it's included modules.
-  # Calls #load_plugins to reference the modules to be used.
+  # Calls the given process method with the given base, args, and steps.
   #
-  # @param [Module] base will be used to determine available commands
+  # @param [Module] base the Module containing the Method or sub Module to run
   # @param [Array] args a String Array representing the command to run followed by arguments to be passed
-  # @param [Hash] plugins_options should have the following keys mapped to Modules which will be called
+  # @param [Hash] steps should have the following keys mapped to Methods or Procs which will be called by the process method
   # :arguments, :discover, :documentation, :source, :parameters, :executor, :output, :interface, :error
-  # @return [Object] the result of calling the method selected by :discover module using the args from the :arguments module
-  # matched to parameters by the :parameters module
-  def self.run_command(base, args=[], plugins_options={})
-    plugins = {
-        arguments: Rubycom::ArgParse,
-        discover: Rubycom::SingletonCommands,
-        documentation: Rubycom::YardDoc,
-        source: Rubycom::Sources,
-        parameters: Rubycom::ParameterExtract,
-        executor: Rubycom::Executor,
-        output: Rubycom::OutputHandler,
-        interface: Rubycom::CommandInterface,
-        error: Rubycom::ErrorHandler
-    }.merge(plugins_options)
+  # @param [Method|Proc] process a Method or Proc which calls the step_methods in order to parse args and run a command on base
+  # @return [Object] the result of calling the method selected by the :discover method using the args from the :arguments method
+  # matched to parameters by the :parameters method
+  def self.run_command(base, args=[], steps={}, process=Rubycom.public_method(:process))
+    process.call(base, args, steps)
+  end
 
-    parsed_command_line = plugins[:arguments].parse_command_line(args)
-    command = plugins[:discover].discover_command(base, parsed_command_line)
+  # Calls the given steps with the required parameters and ordering to locate and call a method on base or one of it's
+  # included modules. This method expresses a procedure and calls the methods in steps to execute each step in the procedure.
+  # If not overridden in steps, then method called for each step will be determined by the return from #step_methods.
+  #
+  # @param [Module] base the Module containing the Method or sub Module to run
+  # @param [Array] args a String Array representing the command to run followed by arguments to be passed
+  # @param [Hash] steps should have the following keys mapped to Methods or Procs which will be called by the process method
+  # :arguments, :discover, :documentation, :source, :parameters, :executor, :output, :interface, :error
+  # @return [Object] the result of calling the method selected by the :discover method using the args from the :arguments method
+  # matched to parameters by the :parameters method
+  def self.process(base, args=[], steps={})
+    steps = self.step_methods.merge(steps)
+
+    parsed_command_line = steps[:arguments].call(args)
+    command = steps[:discover].call(base, parsed_command_line)
     begin
-      command_doc = plugins[:documentation].document_command(command, plugins[:source])
-      parameters = plugins[:parameters].extract_parameters(command, parsed_command_line, command_doc)
-      command_result = plugins[:executor].execute_command(command, parameters)
-      plugins[:output].process_output(command_result)
+      command_doc = steps[:documentation].call(command, steps[:source])
+      parameters = steps[:parameters].call(command, parsed_command_line, command_doc)
+      command_result = steps[:executor].call(command, parameters)
+      steps[:output].call(command_result)
     rescue RubycomError => e
-      cli_output = plugins[:interface].build_interface(command, command_doc)
-      plugins[:error].handle_error(e, cli_output)
+      cli_output = steps[:interface].call(command, command_doc)
+      steps[:error].call(e, cli_output)
     end
     command_result
+  end
+
+  # Convenience call for use with #process when the default Rubycom functionality is required.
+  #
+  # @return [Hash] mapping :arguments, :discover, :documentation, :source, :parameters, :executor, :output, :interface, :error
+  # to the default methods which carry out the step referred to by the key.
+  def self.step_methods()
+    {
+        arguments: Rubycom::ArgParse.public_method(:parse_command_line),
+        discover: Rubycom::SingletonCommands.public_method(:discover_command),
+        documentation: Rubycom::YardDoc.public_method(:document_command),
+        source: Rubycom::Sources.public_method(:source_command),
+        parameters: Rubycom::ParameterExtract.public_method(:extract_parameters),
+        executor: Rubycom::Executor.public_method(:execute_command),
+        output: Rubycom::OutputHandler.public_method(:process_output),
+        interface: Rubycom::CommandInterface.public_method(:build_interface),
+        error: Rubycom::ErrorHandler.public_method(:handle_error)
+    }
   end
 
 end
