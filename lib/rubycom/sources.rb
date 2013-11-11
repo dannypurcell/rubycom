@@ -23,7 +23,7 @@ module Rubycom
     def self.check(commands)
       raise ArgumentError, "#{commands} should be an Array but was #{commands.class}" unless commands.class == Array
       commands.each { |cmd|
-        raise ArgumentError, "#{cmd} should be a Module, Method, or String but was #{cmd.class}" unless [Module, Method, String].include?(cmd.class)
+        raise ArgumentError, "#{cmd} should be a Module, Method, Symbol, or String but was #{cmd.class}" unless [Module, Method, Symbol, String].include?(cmd.class)
       }
     end
 
@@ -40,6 +40,11 @@ module Rubycom
                       self.module_source(cmd)
                     elsif cmd.class == Method
                       self.method_source(cmd)
+                    elsif cmd.class == Symbol || cmd.class == String
+                      mod = cmd.to_s.split('::').reduce(Kernel){|last_mod, next_mod|
+                        last_mod.const_get(next_mod.to_s.to_sym)
+                      } rescue cmd
+                      self.module_source(mod)
                     else
                       cmd
                     end
@@ -47,23 +52,29 @@ module Rubycom
       }
     end
 
-    # Searches for the source location of the given module. Since modules can be define in many locations, this method
-    # looks up the source location for each of the modules methods and filters to the set of files whose name matches
-    # the module's name when converted to the prescribed pattern for files which define modules.
+    # Searches for the source location of the given module. Since modules can be defined in many locations, this method
+    # looks up the source location for each of the module's singleton methods and joins the source code for the files in
+    # which those methods are defined. If the source file could not be found by this process and $0 matches typical ruby
+    # pattern for a file containing the module's definition then the source code for $0 will returned.
     #
     # @param [Module] mod the module to be sourced
     # @return [String] a string representing the source of the given module or an empty string if no source file could be located
-    # an array of file paths where the modules methods are defined
     def self.module_source(mod)
-      raise ArgumentError, "#{mod} should be #{Module} but was #{mod.class}" unless mod.class == Module
-      source_files = mod.methods.map { |sym|
+      return mod unless mod.class == Module
+      source_files = mod.singleton_methods(true).select { |sym| ![:included, :extended].include?(sym) }.map { |sym|
         mod.method(sym).source_location.first rescue nil
-      }.compact.select { |file|
-        File.basename(file, '.*').gsub('_', '').downcase == mod.to_s.downcase
-      }.uniq
+      }.compact.uniq
+
+      if source_files.empty?
+        source_files = (File.basename($0, '.*').gsub('_', '').downcase == mod.to_s.downcase)? [$0] : []
+      end
 
       return '' if source_files.empty?
-      File.read(source_files.first)
+      source_files.reduce(''){|source_str, next_file|
+        source_str << File.read(next_file)
+        source_str << "\n" unless source_str.end_with?("\n")
+        source_str
+      } || ''
     end
 
     # Discovers the source code for the given method.
@@ -71,7 +82,7 @@ module Rubycom
     # @param [Method] method the method to be source
     # @return [String] the source of the specified method
     def self.method_source(method)
-      raise ArgumentError, "#{method} should be #{Method} but was #{method.class}" unless [Method].include?(method.class)
+      return method unless method.class == Method
       method.comment + method.source
     end
   end

@@ -8,8 +8,8 @@ module Rubycom
     # @param [Hash] command_doc keys should include :full_doc and any keys required by #build_usage and #build_details
     # @return [String] a structured string suitable for printing to the console as a command usage document
     def self.build_interface(command, command_doc)
-      return '' if command.nil?
-      return '' if command_doc.nil?
+      raise ArgumentError, "command should not be nil" if command.nil?
+      raise ArgumentError, "command_doc should not be nil" if command_doc.nil?
       "#{self.build_usage(command, command_doc)}\n"+
       "Description:\n"+
       "#{command_doc.fetch(:full_doc, '').split("\n").map{|line| "  #{line}"}.join("\n").chomp}\n"+
