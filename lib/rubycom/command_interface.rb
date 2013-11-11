@@ -23,7 +23,8 @@ module Rubycom
     # @return [String] a structured text representation of usage patterns for the given command and doc hash
     def self.build_usage(command, command_doc)
       return '' if command.nil?
-      command_use = if File.basename($0, File.extname($0)).gsub("_", '') == command.name.to_s.downcase
+      command_use = if File.basename($0, File.extname($0)).gsub("_", '') == command.name.to_s.downcase ||
+                        File.read($0).match(/(class|module)\s+#{command.name}/)
                       File.basename($0)
                     else
                       command.name.to_s
