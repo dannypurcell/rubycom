@@ -67,6 +67,7 @@ module Rubycom
 
       if source_files.empty?
         source_files = $LOADED_FEATURES.select{|file| File.basename(file, '.*').gsub('_', '').downcase == mod.to_s.downcase }
+        source_files << $0 if File.basename($0, '.*').gsub('_', '').downcase == mod.to_s.downcase
       end
 
       if source_files.empty?
@@ -80,6 +81,7 @@ module Rubycom
               (File.read(file).match(/(class|module)\s+#{mod.name}/) rescue false)
           ancestor_match && definition_match
         }
+        source_files << $0 if (File.read($0).match(/(class|module)\s+#{mod.name}/) rescue false)
       end
 
       return '' if source_files.empty?
