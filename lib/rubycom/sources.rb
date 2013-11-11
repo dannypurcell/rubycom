@@ -66,7 +66,18 @@ module Rubycom
       }.compact.uniq
 
       if source_files.empty?
-        source_files = (File.basename($0, '.*').gsub('_', '').downcase == mod.to_s.downcase)? [$0] : []
+        source_files = $LOADED_FEATURES.select{|file| File.basename(file, '.*').gsub('_', '').downcase == mod.to_s.downcase }
+      end
+
+      if source_files.empty?
+        source_files = $LOADED_FEATURES.select{|file|
+              ancestor_match =
+                  File.dirname(file) == File.dirname($0) ||
+                  File.dirname(File.dirname(file)) == File.dirname(File.dirname($0)) ||
+                  File.dirname(File.dirname(File.dirname(file))) == File.dirname(File.dirname(File.dirname($0)))
+          definition_match = File.read(file).match(/(class|module)\s+#{mod.name}/)
+          ancestor_match && definition_match
+        }
       end
 
       return '' if source_files.empty?

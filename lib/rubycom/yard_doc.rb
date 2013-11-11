@@ -73,7 +73,7 @@ module Rubycom
                 YARD.parse_string(source_method.call(doc_mod.name).to_s)
                 sub_doc_obj = YARD::Registry.at(doc_mod.to_s)
                 {
-                    doc_mod.name => (sub_doc_obj.nil?) ? '' : sub_doc_obj.docstring.summary
+                    doc_mod.name => (sub_doc_obj.nil?) ? '' : sub_doc_obj.docstring.summary.to_s
                 }
               }.reduce({}, &:merge)
           )
