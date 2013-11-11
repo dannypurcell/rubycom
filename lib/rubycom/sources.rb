@@ -75,7 +75,7 @@ module Rubycom
                   File.dirname(file) == File.dirname($0) ||
                   File.dirname(File.dirname(file)) == File.dirname(File.dirname($0)) ||
                   File.dirname(File.dirname(File.dirname(file))) == File.dirname(File.dirname(File.dirname($0)))
-          definition_match = File.read(file).match(/(class|module)\s+#{mod.name}/)
+          definition_match = File.exists?(file) && File.read(file).match(/(class|module)\s+#{mod.name}/)
           ancestor_match && definition_match
         }
       end
