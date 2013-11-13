@@ -101,6 +101,7 @@ module Rubycom
         method_name = method.name
         doc_obj = YARD::Registry.at(method_name.to_s)
         doc_obj = YARD::Registry.at("::#{method_name.to_s}") if doc_obj.nil?
+        doc_obj = YARD::Registry.at("\##{method_name.to_s}") if doc_obj.nil?
         doc_obj = YARD::Registry.at(method_name.to_s.split('.').last) if doc_obj.nil?
         raise ArgumentError, "No such method #{method_name} in the given source." if doc_obj.nil?
       else
