@@ -98,11 +98,11 @@ module Rubycom
       elsif source_method.is_a?(Proc) || source_method.is_a?(Method)
         YARD::Registry.clear
         YARD.parse_string(source_method.call(method))
-        method = method.name if method.class == Method
-        doc_obj = YARD::Registry.at(method.to_s)
-        doc_obj = YARD::Registry.at("::#{method.to_s}") if doc_obj.nil?
-        doc_obj = YARD::Registry.at(method.to_s.split('.').last) if doc_obj.nil?
-        raise ArgumentError, "No such method #{method} in the given source." if doc_obj.nil?
+        method_name = method.name
+        doc_obj = YARD::Registry.at(method_name.to_s)
+        doc_obj = YARD::Registry.at("::#{method_name.to_s}") if doc_obj.nil?
+        doc_obj = YARD::Registry.at(method_name.to_s.split('.').last) if doc_obj.nil?
+        raise ArgumentError, "No such method #{method_name} in the given source." if doc_obj.nil?
       else
         raise ArgumentError, "source_plugin should be YARD::CodeObjects::MethodObject|Method but was #{source_method.class}"
       end
@@ -115,7 +115,7 @@ module Rubycom
             param_default = if param_type == :rest
                               []
                             else
-                              (v.class == String) ? eval(v) : v
+                              (v.class == String) ? method.receiver.module_eval(v) : v
                             end
             {
                 param_name: k,
