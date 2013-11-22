@@ -63,16 +63,20 @@ module Rubycom
         mod.method(sym).source_location.first rescue nil
       }
       feature_sources = $LOADED_FEATURES.select{|file|
-        ancestor_match =
-            File.dirname(file) == File.dirname(File.realpath($0)) ||
-                File.dirname(File.dirname(file)) == File.dirname(File.dirname(File.realpath($0))) ||
-                File.dirname(File.dirname(File.dirname(file))) == File.dirname(File.dirname(File.dirname(File.realpath($0))))
-        definition_match = (!File.read(file).match(/(class|module)\s+#{mod.name}/).nil?) rescue false
-        ancestor_match && definition_match
+        name_match = File.dirname(file) == File.dirname(File.realpath($0))
+        parent_match = File.dirname(File.dirname(file)) == File.dirname(File.dirname(File.realpath($0)))
+        ancestor_match = File.dirname(File.dirname(File.dirname(file))) == File.dirname(File.dirname(File.dirname(File.realpath($0))))
+        pwd_match = File.absolute_path(file).include?(Dir.pwd)
+        final = if name_match || parent_match || ancestor_match || pwd_match # prevents unnecessary file reading
+          (!File.read(file).match(/(class|module)\s+#{mod.name}/).nil?) rescue false
+        else
+          false
+        end
+        final
       }
       source_files = (method_sources + feature_sources).compact.uniq
-      if !source_files.include?($0) && ((!File.read($0).match(/(class|module)\s+#{mod.name}/).nil?) rescue false)
-        source_files << $0
+      unless source_files.include?($0) # prevents unnecessary file reading
+        source_files << $0 unless File.read($0).match(/(class|module)\s+#{mod.name}/).nil?
       end
 
       return '' if source_files.empty?

@@ -1,12 +1,16 @@
 #!/usr/bin/env ruby
 require "#{File.expand_path(File.dirname(__FILE__))}/../../lib/rubycom.rb"
 require "#{File.expand_path(File.dirname(__FILE__))}/util_test_module.rb"
+require "#{File.expand_path(File.dirname(__FILE__))}/util_test_sub_module.rb"
 require "#{File.expand_path(File.dirname(__FILE__))}/util_test_no_singleton.rb"
 
+# Composite module for testing
 module UtilTestComposite
   include UtilTestModule
 
   include UtilTestNoSingleton
+
+  include UtilTestSubModule
 
   # A test_command in a composite console
   #
@@ -16,5 +20,4 @@ module UtilTestComposite
     test_arg
   end
 
-  include Rubycom
 end

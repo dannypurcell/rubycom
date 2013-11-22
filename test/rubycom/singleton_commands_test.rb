@@ -110,12 +110,13 @@ class SingletonCommandsTest < Test::Unit::TestCase
 
   def test_get_commands_all_false
     test_mod = UtilTestComposite
-    result = Rubycom::SingletonCommands.get_commands(test_mod, false)
-    expected = {:UtilTestComposite =>
-                    {:UtilTestModule => :module,
-                     :UtilTestNoSingleton => :module,
-                     :test_composite_command => :method}}
-    assert_equal(expected, result)
+    result_keys = Rubycom::SingletonCommands.get_commands(test_mod, false)[:UtilTestComposite].keys.map{|key|key.to_s}
+    test_mod.singleton_methods(false).each{|meth|
+      assert(result_keys.include?(meth.to_s), "get_commands result keys: #{result_keys} should include base module singleton method #{meth.to_s}")
+    }
+    test_mod.included_modules.reject{|mod|mod.to_s == "Rubycom"}.each{|mod|
+      assert(result_keys.include?(mod.to_s), "get_commands result keys: #{result_keys} should include base included module #{mod.to_s}")
+    }
   end
 
 end

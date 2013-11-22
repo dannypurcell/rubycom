@@ -165,7 +165,7 @@ class RubycomTest < Test::Unit::TestCase
   end
 
   def test_run_multi_args
-    mod = 'util_test_composite.rb'
+    mod = 'util_test_bin.rb'
     sub_mod = 'UtilTestModule'
     command = 'test_command_with_args'
     args = 'a b'

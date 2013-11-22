@@ -130,16 +130,18 @@ class YardDocTest < Test::Unit::TestCase
     test_command = UtilTestComposite
     test_source_fn = Rubycom::Sources.public_method(:source_command)
     result = Rubycom::YardDoc.document_command(test_command, test_source_fn)
-    expected = {
-        :full_doc => "",
-        :short_doc => "",
-        :sub_command_docs => {
-            :UtilTestModule => "A command module used for testing.",
-            :UtilTestNoSingleton => "",
-            :test_composite_command => "A test_command in a composite console."
-        }
+    result_sub_command_doc = result[:sub_command_docs]
+    result_sub_command_doc_keys = result_sub_command_doc.keys.map{|sub_mod|sub_mod.to_s}
+    test_command.included_modules.reject{|mod|mod.to_s=="Rubycom"}.map{|mod|mod.to_s}.each{|mod|
+      assert(result_sub_command_doc_keys.include?(mod.split("::").last), "result_sub_command_doc_keys #{result_sub_command_doc_keys} should include #{mod.split("::").last}")
     }
-    assert_equal(expected, result)
+    result_sub_command_doc.each{|k,v|
+      if k.to_s == "UtilTestNoSingleton"
+        assert_equal(v, '')
+      else
+        assert(v != '', "sub_command_doc for #{k} should not be empty")
+      end
+    }
   end
 
   def test_document_command_run_composite_command
