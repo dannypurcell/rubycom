@@ -20,9 +20,9 @@
   <body>
       <div id="header">
         <nav>
-          <li class="fork"><a href="https://github.com/dannypurcell/Rubycom">View On GitHub</a></li>
-          <li class="downloads"><a href="https://github.com/dannypurcell/Rubycom/zipball/master">ZIP</a></li>
-          <li class="downloads"><a href="https://github.com/dannypurcell/Rubycom/tarball/master">TAR</a></li>
+          <li class="fork"><a href="https://github.com/dannypurcell/rubycom">View On GitHub</a></li>
+          <li class="downloads"><a href="https://github.com/dannypurcell/rubycom/zipball/master">ZIP</a></li>
+          <li class="downloads"><a href="https://github.com/dannypurcell/rubycom/tarball/master">TAR</a></li>
           <li class="title">DOWNLOADS</li>
         </nav>
       </div><!-- end header -->
@@ -32,10 +32,10 @@
       <section>
         <div id="title">
           <h1>Rubycom</h1>
-          <p>Makes building a command line tool as easy as writing a function library</p>
+          <p>Turn your library into a command-line app by simply including Rubycom.</p>
           <hr>
           <span class="credits left">Project maintained by <a href="https://github.com/dannypurcell">dannypurcell</a></span>
-          <span class="credits right">Hosted on GitHub Pages &mdash; Theme by <a href="http://twitter.com/#!/michigangraham">mattgraham</a></span>
+          <span class="credits right">Hosted on GitHub Pages &mdash; Theme by <a href="https://twitter.com/michigangraham">mattgraham</a></span>
         </div>
 
         <h2>
@@ -43,28 +43,77 @@
 
 <p>© Danny Purcell 2013 | MIT license</p>
 
-<p>Makes creating command line tools as easy as writing a function library.</p>
+<p>Makes creating command line tools as easy as including Rubycom.</p>
 
-<p>When a module is run from the terminal and includes Rubycom, Rubycom will parse ARGV for a command name,
-match the command name to a public singleton method (self.method_name()) in the including module, and run the method
-with the given arguments.</p>
+<p>When a Module which has included Rubycom is run from the terminal, Rubycom will parse ARGV for a command name,
+match the command name to a method in the including module, and run the method with the given arguments.</p>
 
 <h2>
 <a name="features" class="anchor" href="#features"><span class="octicon octicon-link"></span></a>Features</h2>
 
-<p>Allows the user to write a properly documented module/class as a function library and convert it to a command line tool
+<p>Allows the user to write a properly documented module/class and convert it to a command line tool
 by simply including Rubycom at the bottom.</p>
 
 <ul>
-<li>Provides a Command Line Interface for any function library simply by stating <code>include Rubycom</code> at the bottom.</li>
+<li>Provides a Command Line Interface for any library simply by stating <code>include Rubycom</code> at the bottom.</li>
 <li>Public singleton methods are made accessible from the terminal. Usage documentation is pulled from method comments.</li>
 <li>Method parameters become required CLI arguments. Optional (defaulted) parameters become CLI options.</li>
 <li>Command consoles can be built up by including other modules before including Rubycom.</li>
 <li>Included modules become commands, their public singleton methods become sub-commands.</li>
+<li>Built in tab completion support for all commands.
+
+<ul>
+<li>Users may call <code>./path/to/my_command.rb register_completions</code> then <code>source ~/.bash_profile</code> to register completions.</li>
+</ul>
+</li>
+<li>Customize Rubycom's functionality by calling <code>Rubycom.run_command</code> with custom plugin modules.</li>
+<li>When calling run_command, functionality can be easily modified by providing a custom module for one of the following
+keys <code>:arguments, :discover, :documentation, :source, :parameters, :executor, :output, :interface, :error</code> in plugins_options.</li>
+</ul><h2>
+<a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h2>
+
+<h4>
+<a name="install-with-gem" class="anchor" href="#install-with-gem"><span class="octicon octicon-link"></span></a>Install with Gem</h4>
+
+<ul>
+<li>Available on <a href="https://rubygems.org/gems/rubycom">Rubygems</a>
+</li>
+<li>Be sure one of your gem sources is <code>source 'https://rubygems.org'</code>
+</li>
+<li>Run <code>gem install rubycom</code>
+</li>
+</ul><h4>
+<a name="building-locally" class="anchor" href="#building-locally"><span class="octicon octicon-link"></span></a>Building locally</h4>
+
+<ul>
+<li>Fork the repository if you wish</li>
+<li>Clone repository locally
+
+<ul>
+<li>If using the main repo: <code>git clone https://github.com/dannypurcell/rubycom.git</code>
+</li>
+</ul>
+</li>
+<li>Run <code>rake install</code> if installing for the first time</li>
+<li>If updating to the latest version run the following commands
+
+<ul>
+<li><code>git checkout master</code></li>
+<li>
+<code>git pull origin master</code>
+
+<ul>
+<li>If that causes any problems <code>git reset --hard origin/master</code>
+</li>
+</ul>
+</li>
+<li><code>rake upgrade</code></li>
+</ul>
+</li>
 </ul><h2>
 <a name="usage" class="anchor" href="#usage"><span class="octicon octicon-link"></span></a>Usage</h2>
 
-<p>Write your module of methods, document them as you normally would. <code>include Rubycom</code> at the bottom.
+<p>Write your library, document them as you normally would. <code>include Rubycom</code> at the bottom.
 Optionally <code>#!/usr/bin/env ruby</code> at the top.</p>
 
 <p>Now any singleton methods <code>def self.method_name</code> will be available to call from the terminal.</p>
@@ -75,150 +124,173 @@ and it's description from the corresponding method's comments.</p>
 
 <p>Calling a valid command with incorrect arguments will produce a usage print out for the matched method.
 Rubycom will include as much documentation on the command line as you provide in your method comments. Currently Rubycom
-only handles <a href="https://github.com/param" class="user-mention">@param</a> and <a href="https://github.com/return" class="user-mention">@return</a> annotation style comments for discovering the method comments regarding params and return values.
-All other commentary will be included as part of the command description. In the absence of <a href="https://github.com/param" class="user-mention">@param</a> or <a href="https://github.com/return" class="user-mention">@return</a> comments,
-Rubycom will also leave off the corresponding Param: and Return: markers in the usage output.</p>
+only handles YardDoc style comments for discovering the parameter and return documentation. All other commentary will be
+included as part of the command description. In the absence of YardDoc annotations, Rubycom will generate a clean usage
+text which may work for your method doc even though Rubycom is not specifically parsing it.</p>
 
 <h5>
 <a name="special-commands" class="anchor" href="#special-commands"><span class="octicon octicon-link"></span></a>Special commands</h5>
 
 <table>
+<thead><tr>
+<th>Command</th>
+<th align="center">Description</th>
+<th align="right">Options</th>
+</tr></thead>
+<tbody>
 <tr>
-<th align="left" style="width:45%;">Command</th>
-<th align="left" style="width:33%;">Description</th>
-<th align="left">Options</th>
+<td><code>ruby ./path/to/module.rb help [command_name]</code></td>
+<td align="center">Will print out usage for the module or optionally the specified command.</td>
+<td align="right"></td>
 </tr>
 <tr>
-<td align="left"><code>ruby ./path/to/module.rb help [command_name]</code></td>
-<td align="left">Will print out usage for the module or optionally the specified command.</td>
-<td align="left"></td>
+<td><code>ruby ./path/to/module.rb register_completions</code></td>
+<td align="center">Setup bash tab completion</td>
+<td align="right"></td>
 </tr>
 <tr>
-<td align="left"><code>ruby ./path/to/module.rb job &lt;/path/to/job.yaml&gt;</code></td>
-<td align="left">Runs the specified job file. See: "Jobs" below.</td>
-<td align="left">
-<code>--test</code> Prints the steps and context without running the commands.</td>
+<td><code>ruby ./path/to/module.rb tab_complete [text]</code></td>
+<td align="center">Print a list of possible matches for a given word</td>
+<td align="right"></td>
 </tr>
+</tbody>
 </table><h3>
 <a name="arguments" class="anchor" href="#arguments"><span class="octicon octicon-link"></span></a>Arguments</h3>
 
-<ul>
-<li>Arguments are automatically parsed from the command line using Ruby's core Yaml module.</li>
-<li>Arguments will be passed to your method in order of their appearance on the command line.</li>
-<li>If you specify a default value for a parameter in your method, then Rubycom will look for a named argument matching
-the parameter's name.</li>
-<li>Users may call out option parameters in any order using <code>--&lt;param_name&gt;=&lt;value&gt;</code> or <code>--&lt;param_name&gt; &lt;value&gt;</code>
+<p>When using Rubycom's default modules:</p>
 
 <ul>
-<li>Currently Rubycom does not yet support sort names for optional parameters so specifying <code>-&lt;param_name&gt;</code>
-is equivalent to <code>--&lt;param_name&gt;</code>
-</li>
+<li>Arguments are automatically parsed from the command line using Rubycom's ArgParse module and converted to Ruby types
+by Ruby's core Yaml module.</li>
+<li>Arguments will be passed to your method in order of their appearance on the command line. With smart parsing for
+option arguments and flags.</li>
+<li>If you specify a default value for a parameter in your method, then Rubycom will look for a named option argument in
+the command line which matches the parameter's name or the first letter in the parameter name if it is unique among the
+other method parameters.</li>
+<li>Users may call out option parameters in any order using <code>--&lt;param_name&gt;=&lt;value&gt;</code>, <code>--&lt;param_name&gt; = &lt;value&gt;</code>, or
+<code>--&lt;param_name&gt; &lt;value&gt;</code>
+
+<ul>
+<li>Rubycom attempts to handle short names for optional parameters so specifying <code>-&lt;p&gt; &lt;value&gt;</code> or <code>-&lt;param&gt; &lt;value&gt;</code>
+is equivalent to <code>--&lt;parameter&gt; &lt;value&gt;</code> if the characters uniquely match a parameter name in the called method.</li>
 </ul>
 </li>
-<li>In the absence of a named option, any optional parameters still unfilled will be filled by unnamed arguments in
-order of appearance.</li>
-<li>Optional parameters which do not get overridden either by a named option specification or an available unnamed
+<li>Any parameter which is not mentioned in the command line will receive one of the remaining, unnamed arguments in order
+of appearance.</li>
+<li>Optional parameters which do not get overridden either by a named optional argument or an available unnamed command line
 argument will be filled by their default as usual.</li>
 <li>If a rest parameter <code>*param_name</code> is defined in the method being called, any remaining arguments will be passed to the
 rest parameter after the required and optional parameters are filled.</li>
-</ul><h3>
-<a name="jobs" class="anchor" href="#jobs"><span class="octicon octicon-link"></span></a>Jobs</h3>
-
-<p>Jobs are a higher order orchestration mechanism for command line utilities. Rubycom provides a simple job runner to every
-command line utility. by calling <code>ruby ./path/to/module.rb job &lt;/path/to/job.yaml&gt;</code> with a valid job yaml. Rubycom will
-run your job.</p>
-
-<ul>
-<li>A valid job file is a Yaml file which specifies a <code>steps</code> node and any number of valid numbered child nodes</li>
-<li>Optionally, an <code>env</code> node may specified.
-
-<ul>
-<li>If specified, <code>env</code> should include child nodes which are <code>key: value</code> pairs Ex: <code>working_dir: ./test/rubycom</code>
-</li>
-<li>If an <code>env</code> is specified, values may be inserted into commands in the <code>steps</code> node as such: <code>env['key']</code>
-
-<ul>
-<li>Ex: <code>ruby env[working_dir]/util_test_composite.rb test_composite_command env[test_msg]</code>
-</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>A valid <code>steps</code> child node is a numbered node <code>1:</code> with a <code>cmd:</code> child node and optionally several context <code>desc:</code>
-child nodes.</li>
-<li>A <code>cmd:</code> node should specify the command string to run. Ex: <code>cmd: ls ./test_folder</code>
-</li>
-<li>A context node should specify some text to be placed with the node's key in a formatted
-logging context Ex: <code>desc: Run test_composite_command</code>
-</li>
-</ul><p>Below is an example job file which demonstrates the format Rubycom supports.</p>
-
-<pre><code>---
-env:
-  test_msg: Hello World
-  test_arg: 123
-  working_dir: ./test/rubycom
-steps:
-  1:
-    desc: Run test_composite_command with environment variable
-    cmd: ruby env[working_dir]/util_test_composite.rb test_composite_command env[test_msg]
-  2:
-    Var: Run UtilTestModule/test_command_options_arr with environment variable
-    cmd: ruby env[working_dir]/util_test_composite.rb UtilTestModule test_command_options_arr '["Hello World", world2]'
-  3:
-    Context: Run test_command_with_args with environment variable
-    cmd: ruby env[working_dir]/util_test_module.rb test_command_with_args env[test_msg] env[test_arg]
-  4:
-    Cmd: Run ls for arbitrary command support
-    cmd: ls
-  5:
-    Arbitrary_Context: Run ls with environment variable
-    cmd: ls env[working_dir]
-</code></pre>
-
-<h2>
+</ul><h2>
 <a name="raison-detre" class="anchor" href="#raison-detre"><span class="octicon octicon-link"></span></a>Raison d'etre</h2>
 
 <ul>
-<li>From scratch command line scripts often include redundant ARGV parsing code, little to no testing, slim documentation.</li>
+<li>Command line scripts written from scratch often include redundant ARGV parsing code, little or no testing, and slim documentation.
+Development speed is important and setting up a properly documented and tested terminal interface takes a while.</li>
 <li>OptionParser and the like help script authors define options for a script.
-They provide structure to the redundant code and slightly easier argument parsing.</li>
+They provide structure to the redundant code and slightly easier argument specification.</li>
 <li>Thor and the like provide a framework the script author will extend to create command line tools.
-Prescriptive approach creates consistency but requires the script author to learn the framework and conform.</li>
-</ul><p>While these are things are nice, we are still writing redundant code and
-tightly coupling the functional code to the interface which presents it.</p>
+The Prescriptive approach creates consistency but requires the script author to learn the framework and conform.</li>
+</ul><p>While these are things do help, we are still writing redundant code and tightly coupling the functional code to the
+interface which presents it. We also lack a generic command line parser which, if available, could help encourage
+Rubyists to standardize command line inputs.</p>
 
-<p>At it's core a terminal command is a function. Rather than requiring the authors to make concessions for the presentation and
-tightly couple the functional code to the interface, it would be nice if the author could simply write a function library
-and attach the interface to it.</p>
+<p>So, what to do?</p>
+
+<p>...Ruby is interpreted...use the source.</p>
+
+<p>Rather than making concessions for the presentation and tightly coupling the functional code
+to the interface, it would be nice if a script author could simply write their code and attach the interface to it.</p>
 
 <h2>
 <a name="how-it-works" class="anchor" href="#how-it-works"><span class="octicon octicon-link"></span></a>How it works</h2>
 
 <p>Rubycom attaches the CLI to the functional code. The author is free to write the functional code as any other.
-If a set of functions needs to be accessible from the terminal, just <code>include Rubycom</code> at the bottom and run the ruby file.</p>
+If a library needs to be accessible from the terminal, just <code>include Rubycom</code> at the bottom of the main Module and run
+the ruby file.</p>
 
 <ul>
-<li>Public singleton methods are made accessible from the terminal.</li>
+<li>Methods are made accessible from the terminal.</li>
 <li>ARGV is parsed for a method to run and arguments.</li>
 <li>Usage documentation is pulled from method comments.</li>
 <li>Method parameters become required CLI arguments.</li>
 <li>Optional (defaulted) parameters become CLI options.</li>
-</ul><p>The result is a function library which can be consumed easily from other classes/modules and which is accessible from the command line.</p>
+<li>Tab completion support if the user has registered it for the file.</li>
+</ul><p>The result is a library which can be consumed easily from other classes/modules and which is accessible from the command line.</p>
 
 <h2>
-<a name="coming-soon" class="anchor" href="#coming-soon"><span class="octicon octicon-link"></span></a>Coming Soon</h2>
+<a name="customizing-rubycom" class="anchor" href="#customizing-rubycom"><span class="octicon octicon-link"></span></a>Customizing Rubycom</h2>
+
+<p>Note: The plugin_options hash is currently taking Modules and calling specific methods on them. This will change to a
+Symbol =&gt; Proc mapping soon. Please log an issue on <a href="https://github.com/dannypurcell/rubycom/issues">GitHub</a> if you
+want this right away.</p>
+
+<p>Rubycom is designed to fit several different ways of calling command line utilities and to respect many of the
+strong conventions regarding command line semantics. While Rubycom's default functionality should fit many common use
+cases it is also built in a modular fashion such that the core functionality can be easily adapted to fit specific
+requirements or user preferences.</p>
 
 <ul>
-<li>Build a job yaml by running each command in sequence with a special option --job_add [:step_number]</li>
-<li>Edit job files from the command line using special options.
+<li>Calling Rubycom via <code>include Rubycom</code> will attempt to execute the default functionality.</li>
+<li>Alternately, calling <code>Rubycom.run_command(base, args=[], plugins_options={})</code> directly enables the user to inject
+custom modules for specific portions of the execution via the plugin_options parameter.</li>
+</ul><h5>
+<a name="plugin-module-contracts" class="anchor" href="#plugin-module-contracts"><span class="octicon octicon-link"></span></a>Plugin Module Contracts</h5>
 
-<ul>
-<li>--job_update [:step_number]</li>
-<li>--job_remove [:step_number]</li>
-</ul>
-</li>
-</ul>
+<table>
+<thead><tr>
+<th>Key</th>
+<th align="center">Expected Inputs</th>
+<th align="center">Expected Outputs</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>:arguments</td>
+<td align="center">ARGV</td>
+<td align="center">A data structure representing the arguments, options, and flags</td>
+</tr>
+<tr>
+<td>:discover</td>
+<td align="center">The Module which included Rubycom and a parsed command line</td>
+<td align="center">A Method or Module representing the command which should be run</td>
+</tr>
+<tr>
+<td>:documentation</td>
+<td align="center">The command to run and the :source plugin</td>
+<td align="center">The command matched to it's documentation</td>
+</tr>
+<tr>
+<td>:source</td>
+<td align="center">A Module or Method object</td>
+<td align="center">The source code for that reference</td>
+</tr>
+<tr>
+<td>:parameters</td>
+<td align="center">A command, a parsed command line, and the command documentation</td>
+<td align="center">The command parameters matched to their values for this run</td>
+</tr>
+<tr>
+<td>:executor</td>
+<td align="center">A command to execute and the command parameters matched to their values for this run</td>
+<td align="center">The result of a call to the given method with the given parameters</td>
+</tr>
+<tr>
+<td>:output</td>
+<td align="center">The command result</td>
+<td align="center">Some output handling action</td>
+</tr>
+<tr>
+<td>:interface</td>
+<td align="center">A command and it's documentation</td>
+<td align="center">A string representing the usage text to present in a terminal</td>
+</tr>
+<tr>
+<td>:error</td>
+<td align="center">An Error and a String representing usage text</td>
+<td align="center">Some error handling action</td>
+</tr>
+</tbody>
+</table>
       </section>
 
     </div>
