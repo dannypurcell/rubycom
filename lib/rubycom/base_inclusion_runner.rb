@@ -4,10 +4,10 @@ module Rubycom
     # Calls the given run_fn with the given base and args if the base was
     # run from the command line in it's home folder or from an installed gem library
     #
-    # @param [Array] the result from Kernel.caller as called from an included module within base
+    # @param [Array] caller the result from Kernel.caller as called from an included module within base
     # if the first caller entry matches $0 then the base module was executed from it's home folder
-    # @param [Method|Proc] to be run if run criteria are satisfied
-    # @param [Module] the base Module to test against and to send to the run_fn
+    # @param [Method|Proc] run_fn to be run if run criteria are satisfied
+    # @param [Module] base the base Module to test against and to send to the run_fn
     # @param [Array] args a String Array representing the arguments to be passed to run_fn
     # @return nil
     def self.run(caller, run_fn, base, args)
