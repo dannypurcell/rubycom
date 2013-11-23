@@ -70,7 +70,10 @@ module Rubycom
             }
           }.reduce({}, &:merge).merge(
               doc_obj.mixins.select { |doc_mod| doc_mod.name != :Rubycom }.map { |doc_mod|
-                YARD.parse_string(source_method.call(doc_mod.name).to_s)
+                namespaced_mod_name = "#{doc_mod.namespace}::#{doc_mod.name}"
+                mod_source = source_method.call(namespaced_mod_name)
+                mod_source = source_method.call(doc_mod.name) if mod_source == namespaced_mod_name
+                YARD.parse_string(mod_source.to_s)
                 sub_doc_obj = YARD::Registry.at(doc_mod.to_s)
                 {
                     doc_mod.name => (sub_doc_obj.nil?) ? '' : sub_doc_obj.docstring.summary.to_s
